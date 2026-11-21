@@ -2,10 +2,11 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
+# 使用国内 Maven 镜像，避免服务器访问 Maven Central 很慢
+COPY maven-settings.xml /root/.m2/settings.xml
 COPY pom.xml ./
-RUN mvn -B -q dependency:go-offline || true
-
 COPY src ./src
+
 RUN mvn -B -q clean package -DskipTests
 
 # ---------- 运行阶段 ----------

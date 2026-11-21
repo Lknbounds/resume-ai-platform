@@ -223,9 +223,10 @@ http.interceptors.response.use(
      *   再失败就直接放弃"。
      */
     const requestUrl = config?.url || ''
-    const isAuthRequest = /\/auth\/(login|register|refresh)\/?$/.test(requestUrl)
+    const isAuthRequest = /(?:^|\/)auth\/(login|register|refresh)\/?$/.test(requestUrl)
+    const isCredentialError = response?.data?.code === 20002
     const canRefreshToken = Boolean(useUserStore().refreshToken)
-    if (response?.status === 401 && !isAuthRequest && canRefreshToken && !config._retry) {
+    if (response?.status === 401 && !isAuthRequest && !isCredentialError && canRefreshToken && !config._retry) {
       config._retry = true
 
       try {

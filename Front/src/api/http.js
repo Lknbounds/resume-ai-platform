@@ -222,7 +222,10 @@ http.interceptors.response.use(
      *   _retry 是个自定义标记，表示"这个请求已经重试过一次了，
      *   再失败就直接放弃"。
      */
-    if (response?.status === 401 && !config._retry) {
+    const requestUrl = config?.url || ''
+    const isAuthRequest = /\/auth\/(login|register|refresh)\/?$/.test(requestUrl)
+    const canRefreshToken = Boolean(useUserStore().refreshToken)
+    if (response?.status === 401 && !isAuthRequest && canRefreshToken && !config._retry) {
       config._retry = true
 
       try {

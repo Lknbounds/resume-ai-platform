@@ -1,0 +1,192 @@
+server:
+  port: 8080
+  tomcat:
+    connection-timeout: 60s
+  max-http-request-header-size: 16KB
+
+spring:
+  application:
+    name: resume-ai-platform
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:resume_ai}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # 结构由 Flyway 管理，禁止改成 update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc.time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true     # 若库中已有表（如手工执行过 V1），以 V1 为基线，不重复执行
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+    default-property-inclusion: non_null
+
+  servlet:
+    multipart:
+      # ★ 开启文件上传（简历 PDF/DOCX 解析用）
+      enabled: true
+      max-file-size: 5MB          # 单个文件上限
+      max-request-size: 6MB       # 整个请求上限（比单文件略大，留余量）
+      # ★ 超过阈值就写入磁盘而不是全放内存，防止大文件撑爆堆
+      file-size-threshold: 512KB
+
+  mvc:
+    async:
+      request-timeout: 300s
+
+  ai:
+    dashscope:
+      # 【重要】未配置 Key 时必须禁用自动配置：
+      # DashScopeConnectionUtils 里有 Assert.hasText(apiKey)，key 为空会导致启动失败。
+      # 这里与业务开关共用 AI_ENABLED，保证「关 AI = 不初始化模型客户端」。
+      enabled: ${AI_ENABLED:false}
+      api-key: ${DASHSCOPE_API_KEY:}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:qwen-plus}
+          temperature: 0.1
+      embedding:
+        options:
+          model: ${AI_EMBEDDING_MODEL:text-embedding-v3}
+    retry:
+      max-attempts: 2
+      backoff:
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 4s
+    # 注意：不声明任何 spring-ai 版本，统一由 spring-ai-alibaba-bom 管理
+
+app:
+  resume-storage:
+    root: ${RESUME_STORAGE_DIR:./data/uploads/resumes}
+  jwt:
+    secret: ${JWT_SECRET:dev-only-change-me-please-32bytes-min!!}
+    access-ttl: PT2H
+    refresh-ttl: P7D
+    issuer: resume-ai
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost}
+
+  ai:
+    enabled: ${AI_ENABLED:false}      # 总开关，默认关闭
+    features:
+      jd-parse: true
+      resume-parse: true
+      suggestions: true
+      rewrite: true
+      interview: true
+      privacy-assist: false
+    timeout:
+      jd-parse: 20s
+      resume-parse: 20s
+      suggestions: 25s
+      rewrite: 30s
+      interview: 45s
+      privacy-assist: 10s
+    max-input-chars:
+      jd: 6000
+      resume: 8000
+    prompt-version: v1
+
+  scoring:
+    version: v1
+    weights:
+      skillCoverage: 0.35
+      experienceMatch: 0.15
+      projectRelevance: 0.20
+      quantifiedImpact: 0.10
+      structureCompleteness: 0.10
+      educationMatch: 0.10
+    grade:
+      excellent: 85
+      good: 70
+      fair: 55
+    skill-importance-weight:
+      HIGH: 3
+      MEDIUM: 2
+      LOW: 1
+    semantic:
+      full-match: 0.82
+      partial-match: 0.72
+    project-similarity:
+      floor: 0.30
+      ceiling: 0.85
+    structure-sections:
+      basicInfo: 20
+      education: 20
+      skills: 20
+      experience: 20
+      project: 20
+    quantified:
+      full-marks-count: 5
+      target-density: 0.6
+    bonus:
+      max: 5
+
+  privacy:
+    rule-version: v1
+
+  interview:
+    external-info:
+      enabled: true
+
+  rate-limit:
+    enabled: true
+    login:      { limit: 5,   window: 60s }
+    register:   { limit: 3,   window: 1h }
+    analysis:   { limit: 30,  window: 1h }
+    post:       { limit: 10,  window: 1d }
+    comment:    { limit: 30,  window: 1h }
+    vote:       { limit: 120, window: 1h }
+    interview:  { limit: 5,   window: 1d }
+    precheck:   { limit: 60,  window: 1h }
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    com.jianli: DEBUG
+    org.hibernate.SQL: WARN

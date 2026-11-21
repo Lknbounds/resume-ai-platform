@@ -1,0 +1,66 @@
+[
+  {
+    "id": "spring-boot-01",
+    "positionKeywords": ["java", "后端", "spring"],
+    "techTags": ["Spring Boot", "自动装配"],
+    "topic": "Spring Boot 自动装配原理",
+    "points": ["@EnableAutoConfiguration 与 SPI", "条件注解的生效顺序", "如何自定义 starter"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "spring-boot-02",
+    "positionKeywords": ["java", "后端", "spring"],
+    "techTags": ["Spring", "事务"],
+    "topic": "Spring 事务失效的常见场景",
+    "points": ["同类内部调用绕过代理", "异常被吞掉", "传播行为的选择"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "redis-cache-01",
+    "positionKeywords": ["java", "后端"],
+    "techTags": ["Redis", "缓存"],
+    "topic": "缓存与数据库一致性怎么保证",
+    "points": ["先删缓存还是先更新库", "延迟双删的适用场景", "订阅 binlog 的方案"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "redis-cache-03",
+    "positionKeywords": ["java", "后端", "redis"],
+    "techTags": ["Redis", "缓存"],
+    "topic": "缓存击穿/穿透/雪崩的处理",
+    "points": ["互斥锁与逻辑过期的取舍", "布隆过滤器", "空值缓存与随机过期时间"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "mq-01",
+    "positionKeywords": ["java", "后端"],
+    "techTags": ["Kafka", "消息队列"],
+    "topic": "如何保证消息不丢失、不重复消费",
+    "points": ["生产者确认机制", "消费位点提交时机", "幂等消费的设计"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "concurrency-01",
+    "positionKeywords": ["java", "后端"],
+    "techTags": ["并发", "多线程"],
+    "topic": "线程池参数怎么定",
+    "points": ["IO 密集与 CPU 密集的差异", "队列与拒绝策略", "监控与动态调整"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "db-01",
+    "positionKeywords": ["java", "后端"],
+    "techTags": ["MySQL", "索引"],
+    "topic": "慢 SQL 的排查与优化思路",
+    "points": ["explain 关注哪些字段", "索引失效的常见原因", "覆盖索引与回表"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  },
+  {
+    "id": "project-star-01",
+    "positionKeywords": ["后端", "java", "前端"],
+    "techTags": ["项目", "STAR"],
+    "topic": "项目复盘：最有挑战的技术问题",
+    "points": ["背景与约束", "你的具体职责边界", "方案取舍与放弃的方案", "可量化的结果"],
+    "sourceNote": "公开面经汇总（示例数据）"
+  }
+]

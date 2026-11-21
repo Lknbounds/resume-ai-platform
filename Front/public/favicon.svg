@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    ★ favicon：青绿渐变圆角方块 + 白色「简」字的下半部分
+      用手指画的简化形状，比文字更适合作图标（16px 时文字会糊）
+  -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#29A399"/>
+      <stop offset="100%" stop-color="#22A8C3"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <!-- 三条横线，代表"简"递进的字形 / 简历的条目 -->
+  <rect x="18" y="22" width="28" height="4" rx="2" fill="#fff" opacity="0.95"/>
+  <rect x="18" y="31" width="20" height="4" rx="2" fill="#fff" opacity="0.8"/>
+  <rect x="18" y="40" width="24" height="4" rx="2" fill="#fff" opacity="0.6"/>
+</svg>

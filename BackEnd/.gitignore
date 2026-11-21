@@ -1,0 +1,25 @@
+target/
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### 日志 ###
+logs/
+*.log
+
+### 本地覆盖（不要提交自己的 Key / 密码）###
+application-local.yml
+.env
+
+# 注意：mvnw / mvnw.cmd / .mvn/wrapper/maven-wrapper.properties 必须提交
+# （Maven Wrapper 靠它们保证"任何机器、任何 Maven 版本都能构建"）

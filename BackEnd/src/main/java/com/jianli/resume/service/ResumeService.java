@@ -480,7 +480,7 @@ public class ResumeService {
          *      AnalysisService 依赖 ResumeService
          *   所以实例化顺序是确定的，不会报循环依赖。
          */
-        var latestReports = latestScoreProvider.latestScores(userId,
+        var latestAnalysisByVersion = latestScoreProvider.latestSummaries(userId,
                 pageData.getContent().stream()
                         .map(Resume::getCurrentVersionId)
                         .filter(java.util.Objects::nonNull)
@@ -489,7 +489,7 @@ public class ResumeService {
         List<ResumeSummaryVO> records = pageData.getContent().stream()
                 .map(r -> {
                     ResumeVersion current = versionsById.get(r.getCurrentVersionId());
-                    Double score = latestReports.getOrDefault(r.getCurrentVersionId(), null);
+                    var analysis = latestAnalysisByVersion.get(r.getCurrentVersionId());
                     return new ResumeSummaryVO(
                             r.getId(),
                             r.getTitle(),
@@ -497,8 +497,12 @@ public class ResumeService {
                             r.getCurrentVersionId(),
                             r.getVersionCount(),
                             current == null ? null : preview(current.getContent()),
-                            score,
-                            null,
+                            analysis == null ? null : analysis.score(),
+                            analysis == null ? null : analysis.reportId(),
+                            analysis == null ? null : analysis.jdTitle(),
+                            analysis == null ? null : analysis.jdCompany(),
+                            analysis == null ? null : analysis.analyzedAt(),
+                            analysis == null ? 0 : analysis.jdCount(),
                             r.getUpdatedAt()
                     );
                 })

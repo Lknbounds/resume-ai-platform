@@ -28,6 +28,28 @@ import { resumeApi } from '@/api/resume'
 const router = useRouter()
 const store = useResumeStore()
 
+const page = ref(1)
+const size = ref(10)
+
+async function loadList() {
+  const data = await store.fetchList(page.value, size.value, keyword.value)
+  if (data.records.length === 0 && data.total > 0 && page.value > 1) {
+    page.value = Math.max(1, Math.min(page.value - 1, data.pages || 1))
+    await store.fetchList(page.value, size.value, keyword.value)
+  }
+}
+
+function onPage(nextPage) {
+  page.value = nextPage
+  loadList()
+}
+
+function onSizeChange(nextSize) {
+  size.value = nextSize
+  page.value = 1
+  loadList()
+}
+
 /**
  * ═══════════════════════════════════════════════════════════════════════
  *  【搜索】
@@ -47,14 +69,16 @@ let searchTimer = null
 function onSearchInput() {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
-    store.fetchList(1, 50, keyword.value)
+    page.value = 1
+    loadList()
   }, 300)
 }
 
 function clearSearch() {
   keyword.value = ''
   clearTimeout(searchTimer)
-  store.fetchList(1, 50, '')
+  page.value = 1
+  loadList()
 }
 
 const dialogVisible = ref(false)
@@ -104,9 +128,7 @@ const charCount = computed(() => form.content.replace(/\s/g, '').length)
 const MIN_CHARS = 50
 const enoughChars = computed(() => charCount.value >= MIN_CHARS)
 
-onMounted(() => {
-  store.fetchList(1, 50)
-})
+onMounted(loadList)
 
 function openCreate() {
   form.title = ''
@@ -228,7 +250,8 @@ async function submit() {
 
 
     dialogVisible.value = false
-    await store.fetchList(1, 50, keyword.value)
+    page.value = 1
+    await loadList()
     openWorkspace(data)
   } finally {
     submitting.value = false
@@ -251,9 +274,11 @@ async function remove(row) {
     return
   }
 
+  const wasLastOnPage = store.list.length === 1
   await store.remove(row.id)
+  if (wasLastOnPage && page.value > 1) page.value -= 1
   ElMessage.success('已删除')
-  await store.fetchList(1, 50)
+  await loadList()
 }
 
 /**
@@ -346,7 +371,12 @@ function relativeTime(ts) {
         v-for="r in store.list"
         :key="r.id"
         class="card"
+        role="button"
+        tabindex="0"
+        :aria-label="`打开简历：${r.title}`"
         @click="openWorkspace(r)"
+        @keydown.enter.self="openWorkspace(r)"
+        @keydown.space.self.prevent="openWorkspace(r)"
       >
         <!-- 顶行：标题 + 分数 -->
         <div class="card-top">
@@ -369,7 +399,7 @@ function relativeTime(ts) {
               {{ r.latestScore != null ? r.latestScore.toFixed(1) : '—' }}
             </span>
             <span class="score-label">
-              {{ r.latestScore != null ? '匹配分' : '未分析' }}
+              {{ r.latestScore != null ? '最近匹配' : '未分析' }}
             </span>
           </div>
         </div>
@@ -379,12 +409,24 @@ function relativeTime(ts) {
           {{ r.currentVersionPreview }}
         </p>
 
+        <div v-if="r.latestScore != null" class="analysis-context">
+          <span class="analysis-context-label">最近分析</span>
+          <span class="analysis-context-target">
+            {{ r.latestJdCompany ? `${r.latestJdCompany} · ` : '' }}{{ r.latestJdTitle || '岗位信息已删除' }}
+          </span>
+          <span class="analysis-context-time">{{ relativeTime(r.latestAnalyzedAt) }}</span>
+        </div>
+
         <!-- 底行：元信息 + 操作 -->
         <div class="card-bottom">
           <div class="meta">
             <span class="meta-item">v{{ r.versionCount }}</span>
             <span class="dot">·</span>
             <span class="meta-item">{{ relativeTime(r.updatedAt) }}</span>
+            <template v-if="r.analyzedJdCount">
+              <span class="dot">·</span>
+              <span class="meta-item">{{ r.analyzedJdCount }} 个岗位记录</span>
+            </template>
           </div>
 
           <div class="card-actions">
@@ -399,8 +441,27 @@ function relativeTime(ts) {
       </div>
     </div>
 
+    <el-pagination
+      v-if="store.total > size"
+      class="pager"
+      background
+      layout="total, sizes, prev, pager, next, jumper"
+      :page-sizes="[10, 20, 30]"
+      :total="store.total"
+      :page-size="size"
+      :current-page="page"
+      @size-change="onSizeChange"
+      @current-change="onPage"
+    />
+
     <!-- ═══════════ 新建弹窗 ═══════════ -->
-    <el-dialog v-model="dialogVisible" title="新建简历" width="740px" top="5vh">
+    <el-dialog
+      v-model="dialogVisible"
+      title="新建简历"
+      width="740px"
+      top="4vh"
+      class="resume-create-dialog"
+    >
       <el-form label-position="top">
         <!--
           ═══════════ 上传区 ═══════════
@@ -525,13 +586,19 @@ function relativeTime(ts) {
       v-model="workspaceVisible"
       :resume-id="workspaceResume.id"
       :resume-title="workspaceResume.title"
-      @changed="store.fetchList(1, 50, keyword)"
+      @changed="loadList"
     />
 
   </DefaultLayout>
 </template>
 
 <style scoped>
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
 /* ═══════════════ 页头 ═══════════════ */
 
 .page-head {
@@ -589,7 +656,7 @@ function relativeTime(ts) {
   border-radius: 15px;
 
   background: var(--gradient-brand);
-  box-shadow: 0 6px 20px rgba(41, 163, 153, 0.25);
+  box-shadow: 0 6px 20px rgba(31, 75, 62, 0.16);
 
   display: flex;
   align-items: center;
@@ -640,6 +707,11 @@ function relativeTime(ts) {
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
+.card:focus-visible {
+  outline: 3px solid rgba(31, 75, 62, 0.55);
+  outline-offset: 3px;
+}
+
 /*
  * ★ hover 三件事同时发生：
  *      边框变青（品牌色暗示"可点"）
@@ -648,7 +720,7 @@ function relativeTime(ts) {
  *   三个都很轻，合起来才有"活"的感觉。
  */
 .card:hover {
-  border-color: rgba(41, 163, 153, 0.35);
+  border-color: rgba(31, 75, 62, 0.24);
   box-shadow: 0 4px 16px rgba(18, 23, 33, 0.07);
   transform: translateY(-1px);
 }
@@ -728,6 +800,38 @@ function relativeTime(ts) {
   letter-spacing: 0.04em;
 }
 
+/* ─────────── 最近岗位分析 ─────────── */
+.analysis-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.analysis-context-label {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-weight: 600;
+}
+
+.analysis-context-target {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.analysis-context-time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-faint);
+}
+
 /* ─────────── 预览 ─────────── */
 
 .card-preview {
@@ -791,6 +895,36 @@ function relativeTime(ts) {
 
 /* ═══════════════ 弹窗 ═══════════════ */
 
+/*
+ * el-dialog 会 Teleport 到 body，因此这里使用 :global 命中弹窗根节点。
+ * 对话框限制在视口内，正文区域独立滚动，底部操作区始终可见。
+ */
+:global(.resume-create-dialog) {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 8vh);
+  max-height: calc(100dvh - 8vh);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+:global(.resume-create-dialog .el-dialog__header) {
+  flex: 0 0 auto;
+}
+
+:global(.resume-create-dialog .el-dialog__body) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:global(.resume-create-dialog .el-dialog__footer) {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+
 .hint {
   font-size: 12px;
   color: var(--text-faint);
@@ -824,7 +958,7 @@ function relativeTime(ts) {
 .uploader :deep(.el-upload-dragger) {
   border: 1.5px dashed var(--line);
   border-radius: var(--radius);
-  background: #fafbfc;
+  background: var(--surface-deep);
   padding: 20px;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -925,5 +1059,235 @@ function relativeTime(ts) {
   flex: 1;
   height: 1px;
   background: var(--line-soft);
+}
+
+@media (max-width: 800px) {
+  :global(.resume-create-dialog) {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    margin-top: 12px !important;
+  }
+
+  :global(.resume-create-dialog .el-dialog__body) {
+    padding: 8px 14px 12px;
+  }
+
+  :global(.resume-create-dialog .el-dialog__footer) {
+    padding: 10px 14px 12px;
+  }
+
+  .uploader :deep(.el-upload-dragger) {
+    padding: 14px 10px;
+  }
+
+  .hint {
+    display: block;
+    margin: 2px 0 0;
+  }
+}
+
+/* ═══════════════ 方案 C：职业工作室覆盖层 ═══════════════ */
+.page-head {
+  align-items: flex-end;
+  gap: 28px;
+  margin-bottom: 30px;
+}
+
+.page-title {
+  font-family: var(--font-serif);
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin-bottom: 9px;
+}
+
+.page-title::before {
+  content: 'RESUME ARCHIVE';
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.page-title::after {
+  content: '';
+  display: none;
+}
+
+.page-sub {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.head-actions {
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 252, 247, 0.8);
+}
+
+.search { width: 230px; }
+.search :deep(.el-input__wrapper) { border-radius: 9px; }
+
+.empty {
+  padding: 72px 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 252, 247, 0.58);
+}
+
+.empty-icon {
+  border-radius: 16px 16px 16px 4px;
+  background: var(--brand);
+  box-shadow: 8px 8px 0 rgba(31, 75, 62, 0.08);
+}
+
+.empty-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.empty-desc {
+  max-width: 380px;
+  margin-inline: auto;
+  line-height: 1.7;
+}
+
+.list {
+  counter-reset: resume-card;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  padding: 21px 23px 18px 82px;
+  border-color: var(--line-soft);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card::before {
+  counter-increment: resume-card;
+  content: counter(resume-card, decimal-leading-zero);
+  position: absolute;
+  left: 23px;
+  top: 22px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  left: 55px;
+  top: 26px;
+  bottom: 26px;
+  width: 1px;
+  background: var(--line-soft);
+}
+
+.card:hover {
+  border-color: rgba(31, 75, 62, 0.28);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card:focus-within {
+  outline: 3px solid rgba(238, 106, 75, 0.28);
+  outline-offset: 2px;
+}
+
+.card-title {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.tag {
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.score-num {
+  font-family: var(--font-serif);
+  font-size: 28px;
+}
+
+.score-label { margin-top: 4px; }
+
+.card-preview {
+  max-width: 760px;
+  margin-top: 9px;
+  font-size: 12.5px;
+}
+
+.card-bottom {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.card-actions :deep(.el-button) {
+  min-height: 36px;
+  padding-inline: 9px;
+}
+
+.del { opacity: 1; }
+
+.uploader :deep(.el-upload-dragger) {
+  background: var(--surface-deep);
+}
+
+.uploader :deep(.el-upload-dragger:hover) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+@media (max-width: 760px) {
+  .page-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .page-title { font-size: 36px; }
+
+  .head-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search {
+    width: 100%;
+    flex: 1 1 180px;
+  }
+
+  .head-actions :deep(.el-button) {
+    flex: 1 1 120px;
+  }
+
+  .card {
+    padding: 18px 17px 16px 60px;
+  }
+
+  .card::before { left: 16px; top: 20px; }
+  .card::after { left: 45px; top: 24px; bottom: 24px; }
+  .card-top { gap: 10px; }
+  .card-title { white-space: normal; }
+  .score-num { font-size: 24px; }
+  .card-actions :deep(.el-button) { min-height: 44px; }
+  .del { opacity: 1; }
 }
 </style>

@@ -332,50 +332,56 @@ async function saveInfo() {
 
 <template>
   <DefaultLayout>
-    <!--
-      ★ 返回按钮提到页面最顶部。
-        原来它藏在左侧卡片的 header 里（"返回"小字），
-        不够显眼 —— 用户找不到。
-    -->
     <BackButton to="/resumes" label="返回简历列表" />
 
-    <!--
-      ★ v-if="store.current" 防止数据还没加载时渲染报错。
-        骨架屏用 el-skeleton 更友好。
-    -->
     <el-skeleton v-if="!store.current" :rows="8" animated />
 
-    <el-row v-else :gutter="16">
-      <!-- ═══════════ 左侧：版本时间线 ═══════════ -->
-      <el-col :span="6">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-head">
-              <div class="head-left">
-                <span class="head-title">{{ store.current.title }}</span>
-                <!--
-                  ★ 目标岗位：详情页也要显示，让用户确认"打开的是投哪个岗位的简历"
-                    没有岗位时显示一个可点的浅色提示
-                -->
-                <span v-if="store.current.targetPosition" class="position-tag">
-                  {{ store.current.targetPosition }}
-                </span>
-                <span v-else class="position-tag muted" @click="editInfoVisible = true">
-                  未设岗位
-                </span>
-              </div>
+    <div v-else class="detail-page">
+      <header class="studio-page-head">
+        <div class="studio-page-copy">
+          <p class="studio-eyebrow">RESUME FILE</p>
+          <h1 class="studio-page-title">{{ store.current.title }}</h1>
+          <div class="title-meta">
+            <button
+              v-if="store.current.targetPosition"
+              type="button"
+              class="position-tag"
+              @click="openEditInfo"
+            >
+              {{ store.current.targetPosition }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="position-tag muted"
+              @click="openEditInfo"
+            >
+              设置目标岗位
+            </button>
+            <span class="meta-divider">·</span>
+            <span>{{ store.current.versions?.length || 0 }} 个版本</span>
+          </div>
+        </div>
 
-              <div class="head-actions">
-                <el-button text size="small" @click="openEditInfo">编辑信息</el-button>
-              </div>
+        <div class="studio-page-actions">
+          <el-button @click="openEditInfo">
+            <el-icon><EditPen /></el-icon>
+            编辑简历信息
+          </el-button>
+        </div>
+      </header>
+
+      <div class="detail-grid">
+        <aside class="studio-paper versions-panel">
+          <header class="panel-heading">
+            <div>
+              <p class="panel-kicker">VERSION LOG</p>
+              <h2>版本记录</h2>
             </div>
-          </template>
+            <span class="panel-count">{{ store.current.versions?.length || 0 }}</span>
+          </header>
 
-          <el-timeline>
-            <!--
-              ★ :type 决定时间线圆点的颜色
-                 当前版本用 primary（蓝），其他用默认灰
-            -->
+          <el-timeline class="version-timeline">
             <el-timeline-item
               v-for="v in store.current.versions"
               :key="v.id"
@@ -383,20 +389,18 @@ async function saveInfo() {
               placement="top"
               :type="v.id === store.current.currentVersionId ? 'primary' : ''"
             >
-              <div
+              <button
+                type="button"
                 class="ver"
                 :class="{ active: v.id === activeVersionId }"
+                :aria-pressed="v.id === activeVersionId"
                 @click="activeVersionId = v.id"
               >
-                <div class="ver-title">
+                <span class="ver-title">
                   v{{ v.versionNo }}
                   <el-tag size="small" :type="sourceType[v.source]" effect="plain">
                     {{ sourceLabel[v.source] || v.source }}
                   </el-tag>
-                  <!--
-                    ★ 给当前版本加个"当前"标记
-                      这样用户知道"分析默认会用哪一版"
-                  -->
                   <el-tag
                     v-if="v.id === store.current.currentVersionId"
                     size="small"
@@ -405,82 +409,78 @@ async function saveInfo() {
                   >
                     当前
                   </el-tag>
-                </div>
-                <div class="ver-note">{{ v.changeNote || '—' }}</div>
-                <div class="ver-meta">{{ v.charCount }} 字</div>
-              </div>
+                </span>
+                <span class="ver-note">{{ v.changeNote || '暂无变更说明' }}</span>
+                <span class="ver-meta">{{ v.charCount }} 字</span>
+              </button>
             </el-timeline-item>
           </el-timeline>
-        </el-card>
-      </el-col>
+        </aside>
 
-      <!-- ═══════════ 右侧：版本正文 ═══════════ -->
-      <el-col :span="18">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-head">
-              <span>
-                v{{ version?.versionNo }} · {{ version?.charCount }} 字
-                <span v-if="editing" class="editing-hint">
-                  （编辑中 {{ draftCharCount }} 字<span v-if="!enoughChars">
-                  ，至少需 {{ MIN_CHARS }} 字</span>）
-                </span>
+        <section class="studio-paper document-panel">
+          <header class="document-head">
+            <div class="document-title">
+              <p class="panel-kicker">DOCUMENT</p>
+              <h2>
+                v{{ version?.versionNo }}
+                <span>{{ version?.charCount }} 字</span>
+              </h2>
+              <span v-if="editing" class="editing-hint">
+                编辑中 {{ draftCharCount }} 字<span v-if="!enoughChars">
+                ，至少需 {{ MIN_CHARS }} 字</span>
               </span>
-
-              <div class="actions">
-                <!-- 浏览态 -->
-                <template v-if="!editing">
-                  <el-button @click="startEdit">编辑内容</el-button>
-                  <el-button type="primary" disabled>发起分析</el-button>
-                </template>
-
-                <!-- 编辑态 -->
-                <template v-else>
-                  <el-input
-                    v-model="changeNote"
-                    placeholder="变更说明（可选）"
-                    style="width: 200px; margin-right: 8px"
-                    maxlength="255"
-                  />
-                  <el-button @click="cancelEdit">取消</el-button>
-                  <el-button
-                    type="primary"
-                    :loading="saving"
-                    :disabled="!enoughChars || !isDirty"
-                    @click="saveNewVersion"
-                  >
-                    保存为新版本
-                  </el-button>
-                </template>
-              </div>
             </div>
-          </template>
+
+            <div class="actions">
+              <template v-if="!editing">
+                <el-button @click="startEdit">
+                  <el-icon><EditPen /></el-icon>
+                  编辑内容
+                </el-button>
+                <el-button type="primary" disabled>发起分析</el-button>
+              </template>
+
+              <template v-else>
+                <el-input
+                  v-model="changeNote"
+                  class="change-note"
+                  placeholder="变更说明（可选）"
+                  maxlength="255"
+                />
+                <el-button @click="cancelEdit">取消</el-button>
+                <el-button
+                  type="primary"
+                  :loading="saving"
+                  :disabled="!enoughChars || !isDirty"
+                  @click="saveNewVersion"
+                >
+                  保存为新版本
+                </el-button>
+              </template>
+            </div>
+          </header>
 
           <el-skeleton v-if="versionLoading" :rows="10" animated />
 
-          <!--
-            ★ v-if / v-else 切换编辑态和浏览态
-            ★ 编辑态用 textarea，浏览态用 pre-wrap 保持换行
-          -->
           <el-input
             v-else-if="editing"
             v-model="draft"
             type="textarea"
+            class="document-editor"
             :rows="26"
           />
 
-          <!--
-            ★ class="pre-wrap" 定义在 styles/index.css：
-                white-space: pre-wrap   保留换行和空格
-                word-break: break-word  长单词自动换行
-              ★ 不用 v-html —— 用户内容一律当纯文本渲染，防 XSS。
-          -->
           <div v-else class="pre-wrap content-view">{{ version?.content }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
 
-    <!-- ═══════════ 编辑简历信息弹窗 ═══════════ -->
+          <footer class="document-foot">
+            <span>纯文本展示 · 保留原有换行</span>
+            <span v-if="isDirty">有未保存的修改</span>
+            <span v-else>当前内容已保存</span>
+          </footer>
+        </section>
+      </div>
+    </div>
+
     <el-dialog v-model="editInfoVisible" title="编辑简历信息" width="480px">
       <el-form label-position="top">
         <el-form-item label="标题">
@@ -507,107 +507,261 @@ async function saveInfo() {
 </template>
 
 <style scoped>
-.card-head {
+.detail-page { padding-bottom: 44px; }
+
+.title-meta {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-}
-
-.head-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.head-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #10111a;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-/* 目标岗位标签（同列表页的样式，保持一致） */
-.position-tag {
-  flex-shrink: 0;
+  gap: 9px;
+  margin-top: 15px;
+  color: var(--text-faint);
   font-size: 12px;
-  color: #4f46e5;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 4px;
 }
+
+.position-tag {
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid rgba(31, 75, 62, 0.12);
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.position-tag:hover { border-color: var(--brand); }
 
 .position-tag.muted {
-  color: #b0b3bd;
-  background: #f7f8fa;
-  cursor: pointer;
+  border-style: dashed;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--text-muted);
 }
 
-.position-tag.muted:hover {
-  color: #6b7280;
-  background: #eef0f4;
+.meta-divider { color: var(--line); }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 2.28fr);
+  align-items: start;
+  gap: 16px;
 }
 
-.head-actions {
+.versions-panel {
+  position: sticky;
+  top: 94px;
+  overflow: hidden;
+}
+
+.panel-heading {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 19px 20px 14px;
+  border-bottom: 1px solid var(--line-soft);
 }
 
-.actions {
-  display: flex;
+.panel-kicker {
+  margin: 0 0 4px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.panel-heading h2,
+.document-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+
+.panel-count {
+  display: inline-flex;
+  width: 29px;
+  height: 29px;
   align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.version-timeline {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  padding: 18px 14px 8px 20px;
+}
+
+.version-timeline :deep(.el-timeline-item__timestamp) {
+  color: var(--text-faint);
+  font-size: 10px;
 }
 
 .ver {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
-  padding: 6px 8px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .ver:hover {
-  background: #f5f7fa;
+  border-color: var(--line-soft);
+  background: var(--surface-deep);
 }
 
-/* ★ 选中的版本高亮，让用户知道"现在看的是哪一版" */
 .ver.active {
-  background: #ecf5ff;
+  border-color: rgba(31, 75, 62, 0.17);
+  background: var(--brand-soft);
 }
 
 .ver-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  font-size: 14px;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ver-note {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .ver-meta {
-  font-size: 12px;
-  color: #c0c4cc;
-  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.document-panel {
+  overflow: hidden;
+}
+
+.document-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.document-head h2 span {
+  margin-left: 7px;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .editing-hint {
-  font-size: 12px;
-  color: #e6a23c;
-  font-weight: normal;
+  display: block;
+  margin-top: 5px;
+  color: var(--warning);
+  font-size: 11px;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.change-note { width: 190px; }
+.actions :deep(.el-button) { margin-left: 0; }
+
 .content-view {
-  font-size: 14px;
-  line-height: 1.8;
-  min-height: 400px;
+  min-height: 480px;
+  padding: 34px 42px 42px;
+  background:
+    linear-gradient(rgba(255, 252, 247, 0.93), rgba(255, 252, 247, 0.93)),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(112, 95, 70, 0.075) 31px 32px);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 2.08;
+}
+
+.document-editor :deep(.el-textarea__inner) {
+  min-height: 520px !important;
+  padding: 30px 36px;
+  border-radius: 0;
+  box-shadow: none !important;
+  background:
+    linear-gradient(rgba(255, 252, 247, 0.93), rgba(255, 252, 247, 0.93)),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(112, 95, 70, 0.075) 31px 32px);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 2.08;
+}
+
+.document-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface-deep);
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+@media (max-width: 980px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .versions-panel { position: static; }
+  .version-timeline {
+    max-height: 250px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 12px;
+  }
+  .version-timeline :deep(.el-timeline-item) { padding-bottom: 12px; }
+}
+
+@media (max-width: 700px) {
+  .studio-page-head { align-items: flex-start; }
+  .studio-page-actions { width: 100%; }
+  .studio-page-actions :deep(.el-button) { width: 100%; }
+  .detail-grid { gap: 12px; }
+  .version-timeline { grid-template-columns: 1fr; max-height: 290px; }
+  .document-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 16px 14px;
+  }
+  .actions { justify-content: stretch; }
+  .actions :deep(.el-button) { flex: 1 1 130px; }
+  .change-note { width: 100%; flex: 1 1 100%; }
+  .content-view { min-height: 380px; padding: 24px 20px 32px; font-size: 14px; }
+  .document-editor :deep(.el-textarea__inner) { min-height: 420px !important; padding: 22px 18px; font-size: 14px; }
+  .document-foot { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
 </style>

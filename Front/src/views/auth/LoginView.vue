@@ -28,6 +28,7 @@ import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -165,156 +166,67 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <el-card class="auth-card" shadow="never">
-      <div class="auth-head">
-        <!-- ★ 品牌符号：和导航栏保持一致 -->
-        <div class="logo-wrap">
-          <span class="logo">简</span>
-        </div>
-        <h2>欢迎回来</h2>
-        <p>登录后开始分析你的简历</p>
-      </div>
-
-      <!--
-        ★ :model="form"     绑定数据源
-        ★ :rules="rules"    绑定校验规则
-        ★ ref="formRef"     拿到组件实例，才能调 validate()
-        ★ @keyup.enter      在表单任意位置按回车都触发提交
-                            （比只给按钮加点击事件方便）
-      -->
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        @keyup.enter="submit"
-      >
-        <el-form-item label="用户名" prop="username">
-          <!--
-            ★ v-model="form.username"  双向绑定：
-               输入框改 → form.username 改
-               form.username 改 → 输入框显示变
-            ★ 为什么要写 prop="username"？
-              这是告诉 el-form-item "我对应 form 里的哪个字段"。
-              没有它，校验规则找不到该作用于哪个字段。
-          -->
-          <el-input
-            v-model="form.username"
-            placeholder="4-32 位字母数字下划线"
-            size="large"
-          />
-        </el-form-item>
-
-        <el-form-item label="密码" prop="password">
-          <!--
-            ★ type="password"    输入内容显示为圆点
-            ★ show-password      右侧出现"眼睛"图标，可以切换明文
-          -->
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            placeholder="至少 8 位，含字母和数字"
-            size="large"
-          />
-        </el-form-item>
-
-        <!--
-          ★ :loading="loading"  按钮显示转圈，并且自动禁用防止重复点击
-        -->
-        <el-button
-          type="primary"
-          :loading="loading"
-          class="full"
+  <AuthShell
+    heading="欢迎回来"
+    description="登录后继续分析简历、整理版本，或去社区看看别人的建议。"
+    alt-text="还没有账号？"
+    alt-link-label="立即注册"
+    @alt="router.push('/register')"
+  >
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      @keyup.enter="submit"
+    >
+      <el-form-item label="用户名" prop="username">
+        <el-input
+          v-model="form.username"
+          placeholder="4-32 位字母数字下划线"
           size="large"
-          @click="submit"
-        >
-          登录
-        </el-button>
-      </el-form>
+        />
+      </el-form-item>
 
-      <div class="auth-foot">
-        还没有账号？
-        <!-- ★ el-link 是一个看起来像超链接的按钮，比 <a href> 好 -->
-        <el-link type="primary" @click="router.push('/register')">
-          立即注册
-        </el-link>
-      </div>
-    </el-card>
-  </div>
+      <el-form-item label="密码" prop="password">
+        <el-input
+          v-model="form.password"
+          type="password"
+          show-password
+          placeholder="至少 8 位，含字母和数字"
+          size="large"
+        />
+      </el-form-item>
+
+      <el-button
+        type="primary"
+        :loading="loading"
+        class="full"
+        size="large"
+        @click="submit"
+      >
+        登录
+      </el-button>
+    </el-form>
+  </AuthShell>
 </template>
 
 <style scoped>
-/* ★ scoped：样式只作用于当前组件，不会污染其他页面 */
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-}
-
-.auth-card {
-  width: 400px;
-  border-radius: var(--radius-lg);
-  padding: 8px;
-}
-
-.auth-head {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-/*
- * ★ 登录页顶部的品牌符号
- *   和导航栏的 logo 完全一致 —— 视觉上建立"这是同一个产品"的认知
- */
-.logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 18px;
-}
-
-.logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  background: var(--gradient-brand);
-  box-shadow: 0 6px 20px rgba(41, 163, 153, 0.28);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.auth-head h2 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.auth-head p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
 .full {
   width: 100%;
   margin-top: 8px;
 }
 
-.auth-foot {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
+:deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.el-form-item__label) {
+  padding-bottom: 7px;
+  font-size: 12px;
+}
+
+:deep(.el-input__wrapper) {
+  min-height: 46px;
 }
 </style>

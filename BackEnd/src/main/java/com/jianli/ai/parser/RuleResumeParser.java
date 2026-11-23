@@ -57,11 +57,27 @@ public class RuleResumeParser {
      */
     private static final Map<String, String> SECTION_KEYWORDS = Map.of(
             "BASIC_INFO", "个人信息|基本信息|求职意向|联系方式|姓名|profile|contact",
-            "EDUCATION", "教育背景|教育经历|学历|education",
+            "EDUCATION", "教育背景|教育经历|教育情况|教育信息|学习经历|求学经历|学历信息|毕业院校|院校信息|教育|education(?:\\s+background)?|academic background|educational background",
             "SKILLS", "专业技能|技能清单|技术栈|掌握技能|技能|skills",
             "EXPERIENCE", "工作经历|工作经验|实习经历|职业经历|experience|employment",
             "PROJECT", "项目经历|项目经验|项目实践|projects"
     );
+
+    /** 中文学校名。先按行匹配，并去掉"教育背景 / 毕业于"等前缀，减少把标题吞进校名。 */
+    private static final Pattern CHINESE_SCHOOL = Pattern.compile(
+            "([\\u4e00-\\u9fa5]{2,20}(?:大学|学院|学校))");
+
+    /** 常见英文学校名：Peking University / University of Melbourne / ABC College。 */
+    private static final Pattern ENGLISH_SCHOOL = Pattern.compile(
+            "((?:[A-Z][A-Za-z&.'-]*\\s+){1,5}(?:University|College|Institute)"
+                    + "|University\\s+of\\s+[A-Z][A-Za-z&.' -]{2,50})");
+
+    /** 教育板块标题/校名前缀，用于从"教育经历：北京大学"中提取干净的学校名。 */
+    private static final Pattern EDUCATION_PREFIX = Pattern.compile(
+            "^\\s*(?:教育背景|教育经历|教育情况|教育信息|学习经历|求学经历|学历信息|毕业院校|院校信息|教育|学校|"
+                    + "毕业于|就读于|education(?:\\s+background)?|academic background|educational background)"
+                    + "\\s*[:：|·-]?\\s*",
+            Pattern.CASE_INSENSITIVE);
 
     /**
      * 时间区间正则。
@@ -384,22 +400,79 @@ public class RuleResumeParser {
     // ═══════════════════════════════════════════════════════════════
 
     private Education extractEducation(String text) {
-        String degree = text.contains("博士") ? "PHD"
-                : (text.contains("硕士") || text.contains("研究生")) ? "MASTER"
-                : text.contains("本科") ? "BACHELOR"
-                : (text.contains("大专") || text.contains("专科")) ? "ASSOCIATE"
-                : "NONE";
+        return new Education(extractDegree(text), extractSchool(text), extractMajor(text));
+    }
 
-        Matcher school = Pattern.compile("([\\u4e00-\\u9fa5]{2,15}(?:大学|学院|学校))").matcher(text);
+    /**
+     * 学历层次识别。
+     *
+     * ★ 这里只识别【明确写出来的学历】。
+     *   看到"北京大学"不会擅自推断成本科——学校名不等于学历层次。
+     *   如果只识别到学校但没有本科/硕士等字样，会在评分说明里提示补充。
+     */
+    private String extractDegree(String text) {
+        if (matchesAny(text, "博士", "\\bph\\.?d\\b", "\\bdoctor(?:ate)?\\b")) {
+            return "PHD";
+        }
+        if (matchesAny(text, "硕士", "研究生", "\\bmaster(?:'s)?\\b", "\\bmba\\b",
+                "\\bmsc\\b", "\\bm\\.?s\\b")) {
+            return "MASTER";
+        }
+        if (matchesAny(text, "本科", "学士", "\\bbachelor(?:'s)?\\b", "\\bbsc\\b",
+                "\\bb\\.?s\\b", "\\bb\\.?a\\b")) {
+            return "BACHELOR";
+        }
+        if (matchesAny(text, "大专", "专科", "\\bassociate(?:'s)?(?:\\s+degree)?\\b")) {
+            return "ASSOCIATE";
+        }
+        return "NONE";
+    }
+
+    /**
+     * 学校识别。
+     *
+     * ★ 逐行处理，并先削掉"教育背景 / 毕业于"等前缀。
+     *   这样"教育背景：北京大学"提取到的是"北京大学"，
+     *   而不是把"教育背景北京大学"整串当成校名。
+     */
+    private String extractSchool(String text) {
+        if (text == null || text.isBlank()) return null;
+
+        for (String rawLine : text.split("\\R")) {
+            String line = EDUCATION_PREFIX.matcher(rawLine.trim()).replaceFirst("");
+
+            Matcher english = ENGLISH_SCHOOL.matcher(line);
+            if (english.find()) return english.group(1).trim();
+
+            Matcher chinese = CHINESE_SCHOOL.matcher(line);
+            if (chinese.find()) return chinese.group(1).trim();
+        }
+
+        // 兜底：标题与校名之间没有换行时，仍然允许在全文里找到学校。
+        Matcher english = ENGLISH_SCHOOL.matcher(text);
+        if (english.find()) return english.group(1).trim();
+
+        Matcher chinese = CHINESE_SCHOOL.matcher(text);
+        return chinese.find() ? chinese.group(1).trim() : null;
+    }
+
+    private String extractMajor(String text) {
         Matcher major = Pattern.compile(
-                "(计算机[\\u4e00-\\u9fa5]{0,10}|软件工程|电子信息|通信工程|信息管理|数据科学|人工智能)")
-                .matcher(text);
+                "(计算机[\\u4e00-\\u9fa5]{0,12}|软件工程|电子信息|通信工程|信息管理|数据科学|人工智能|"
+                        + "工商管理|市场营销|会计学|财务管理|机械工程|自动化|数学与应用数学|英语|"
+                        + "computer science|software engineering|information systems|data science|"
+                        + "artificial intelligence|electrical engineering|mechanical engineering|business administration|accounting|finance)",
+                Pattern.CASE_INSENSITIVE).matcher(text);
+        return major.find() ? major.group(1) : null;
+    }
 
-        return new Education(
-                degree,
-                school.find() ? school.group(1) : null,
-                major.find() ? major.group(1) : null
-        );
+    private boolean matchesAny(String text, String... patterns) {
+        for (String pattern : patterns) {
+            if (Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(text).find()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════════

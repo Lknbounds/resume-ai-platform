@@ -80,4 +80,22 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
             """)
     List<AnalysisReport> findLatestByVersionIds(@Param("userId") Long userId,
                                                 @Param("versionIds") Collection<Long> versionIds);
+
+    /**
+     * 批量取这些简历版本下全部已完成报告，按 id 倒序。
+     *
+     * 简历列表既要知道“最近一次分数属于哪个 JD”，也要统计
+     * “这个版本一共分析过多少个不同岗位”。数据量小的阶段，
+     * 一次批量查询后在内存分组，比多条聚合 SQL 更直接可靠。
+     */
+    @Query("""
+            select r from AnalysisReport r
+            where r.userId = :userId
+              and r.resumeVersionId in :versionIds
+              and r.status in ('SUCCESS', 'PARTIAL')
+            order by r.id desc
+            """)
+    List<AnalysisReport> findCompletedByVersionIdsOrderByIdDesc(
+            @Param("userId") Long userId,
+            @Param("versionIds") Collection<Long> versionIds);
 }

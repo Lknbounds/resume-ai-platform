@@ -12,10 +12,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import JdImportDialog from '@/components/JdImportDialog.vue'
 import { jdApi } from '@/api/jd'
 
 const list = ref([])
 const loading = ref(true)
+const page = ref(1)
+const size = ref(10)
+const total = ref(0)
 
 /**
  * 搜索关键词。防抖 300ms，理由同简历列表。
@@ -25,16 +29,19 @@ let searchTimer = null
 
 function onSearchInput() {
   clearTimeout(searchTimer)
+  page.value = 1
   searchTimer = setTimeout(() => load(), 300)
 }
 
 function clearSearch() {
   keyword.value = ''
   clearTimeout(searchTimer)
+  page.value = 1
   load()
 }
 
 const dialogVisible = ref(false)
+const importDialogVisible = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
 const form = reactive({
@@ -48,11 +55,35 @@ onMounted(load)
 async function load() {
   loading.value = true
   try {
+    const params = { page: page.value, size: size.value }
     const kw = keyword.value.trim()
-    list.value = await jdApi.list(kw ? { keyword: kw } : {})
+    if (kw) params.keyword = kw
+    const data = await jdApi.list(params)
+    list.value = data.records || []
+    total.value = data.total || 0
   } finally {
     loading.value = false
   }
+}
+
+function onPage(nextPage) {
+  page.value = nextPage
+  load()
+}
+
+function onSizeChange(nextSize) {
+  size.value = nextSize
+  page.value = 1
+  load()
+}
+
+function onImported() {
+  page.value = 1
+  load()
+}
+
+function openImport() {
+  importDialogVisible.value = true
 }
 
 function openCreate() {
@@ -94,6 +125,7 @@ async function save() {
     }
 
     dialogVisible.value = false
+    page.value = 1
     await load()
   } finally {
     saving.value = false
@@ -111,7 +143,9 @@ async function remove(jd) {
     return
   }
 
+  const wasLastOnPage = list.value.length === 1
   await jdApi.remove(jd.id)
+  if (wasLastOnPage && page.value > 1) page.value -= 1
   ElMessage.success('已删除')
   await load()
 }
@@ -153,6 +187,10 @@ function degreeName(d) {
           </template>
         </el-input>
 
+        <el-button class="import-button" @click="openImport">
+          <el-icon><UploadFilled /></el-icon>
+          导入文件
+        </el-button>
         <el-button type="primary" @click="openCreate">新建 JD</el-button>
       </div>
     </div>
@@ -166,8 +204,13 @@ function degreeName(d) {
       <p class="empty-desc">
         {{ keyword ? `没有岗位或公司包含「${keyword}」` : '粘贴一份岗位描述，系统会自动抽出技能要求' }}
       </p>
-      <el-button v-if="keyword" @click="clearSearch">清除搜索</el-button>
-      <el-button v-else type="primary" @click="openCreate">粘贴 JD</el-button>
+      <template v-if="keyword">
+        <el-button @click="clearSearch">清除搜索</el-button>
+      </template>
+      <template v-else>
+        <el-button type="primary" @click="openCreate">粘贴 JD</el-button>
+        <el-button @click="openImport">导入文件</el-button>
+      </template>
     </div>
 
     <!-- ═══════════ 列表 ═══════════ -->
@@ -234,6 +277,19 @@ function degreeName(d) {
       </div>
     </div>
 
+    <el-pagination
+      v-if="total > size"
+      class="pager"
+      background
+      layout="total, sizes, prev, pager, next, jumper"
+      :page-sizes="[10, 20, 30]"
+      :total="total"
+      :page-size="size"
+      :current-page="page"
+      @size-change="onSizeChange"
+      @current-change="onPage"
+    />
+
     <!-- ═══════════ 弹窗 ═══════════ -->
     <el-dialog
       v-model="dialogVisible"
@@ -268,10 +324,21 @@ function degreeName(d) {
         </el-button>
       </template>
     </el-dialog>
+
+    <JdImportDialog
+      v-model:visible="importDialogVisible"
+      @imported="onImported"
+    />
   </DefaultLayout>
 </template>
 
 <style scoped>
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
 .page-head {
   display: flex;
   justify-content: space-between;
@@ -285,6 +352,22 @@ function degreeName(d) {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+}
+
+.import-button {
+  color: var(--brand);
+  border-color: rgba(31, 75, 62, 0.2);
+  background: rgba(255, 252, 247, 0.65);
+}
+
+.import-button:hover {
+  color: var(--brand-deep);
+  border-color: rgba(31, 75, 62, 0.36);
+  background: var(--brand-soft);
+}
+
+.import-button .el-icon {
+  margin-right: 5px;
 }
 
 .search {
@@ -317,7 +400,7 @@ function degreeName(d) {
   margin: 0 auto 20px;
   border-radius: 15px;
   background: var(--gradient-brand);
-  box-shadow: 0 6px 20px rgba(41, 163, 153, 0.25);
+  box-shadow: 0 6px 20px rgba(31, 75, 62, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -355,7 +438,7 @@ function degreeName(d) {
 }
 
 .card:hover {
-  border-color: rgba(41, 163, 153, 0.25);
+  border-color: rgba(31, 75, 62, 0.16);
   box-shadow: 0 2px 10px rgba(18, 23, 33, 0.05);
 }
 
@@ -456,5 +539,149 @@ function degreeName(d) {
   .row2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* ═══════════════ 方案 C：职业工作室覆盖层 ═══════════════ */
+.page-head {
+  align-items: flex-end;
+  gap: 28px;
+  margin-bottom: 30px;
+}
+
+.page-title {
+  font-family: var(--font-serif);
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin-bottom: 9px;
+}
+
+.page-title::before {
+  content: 'ROLE NOTES';
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.page-sub { font-size: 14px; }
+
+.head-actions {
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 252, 247, 0.8);
+}
+
+.search { width: 230px; }
+.search :deep(.el-input__wrapper) { border-radius: 9px; }
+
+.empty {
+  padding: 72px 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 252, 247, 0.58);
+}
+
+.empty-icon {
+  border-radius: 16px 16px 16px 4px;
+  background: var(--brand);
+  box-shadow: 8px 8px 0 rgba(31, 75, 62, 0.08);
+}
+
+.empty-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.empty-desc {
+  max-width: 420px;
+  margin-inline: auto;
+  line-height: 1.7;
+}
+
+.list {
+  counter-reset: jd-card;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  padding: 20px 22px 18px 76px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card::before {
+  counter-increment: jd-card;
+  content: 'JD ' counter(jd-card, decimal-leading-zero);
+  position: absolute;
+  left: 18px;
+  top: 21px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  left: 61px;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background: var(--line-soft);
+}
+
+.card:hover {
+  border-color: rgba(31, 75, 62, 0.28);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card { transition: border-color .18s, box-shadow .18s, transform .18s; }
+.card-title { font-size: 15px; }
+.company { border-radius: 999px; }
+.req-label { color: var(--text-muted); }
+.actions :deep(.el-button) { min-height: 36px; }
+
+@media (max-width: 760px) {
+  .page-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .page-title { font-size: 36px; }
+
+  .head-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search {
+    width: 100%;
+    flex: 1 1 180px;
+  }
+
+  .head-actions :deep(.el-button) { flex: 1 1 120px; }
+
+  .card { padding: 18px 16px 16px 58px; }
+  .card::after { left: 45px; }
+  .card-top { flex-wrap: wrap; }
+  .actions { margin-left: auto; }
+  .actions :deep(.el-button) { min-height: 44px; }
+  .card-bottom { flex-wrap: wrap; line-height: 1.7; }
 }
 </style>

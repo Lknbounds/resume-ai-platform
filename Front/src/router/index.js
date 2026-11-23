@@ -57,6 +57,11 @@ const routes = [
     component: () => import('@/views/me/ProfileView.vue'),
     meta: { requiresAuth: true, title: '个人资料' }
   },
+  {
+    path: '/me/posts',
+    component: () => import('@/views/me/MyPostsView.vue'),
+    meta: { requiresAuth: true, title: '我的帖子' }
+  },
 
   // ═══════════════ 简历（步骤 5） ═══════════════
   {

@@ -231,15 +231,16 @@ function clearFilters() {
 <template>
   <DefaultLayout>
     <!-- ═══════════ 页头 ═══════════ -->
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">社区</h1>
-        <p class="page-sub">看看别人的简历怎么改，也给点建议</p>
+    <div class="studio-page-head">
+      <div class="studio-page-copy">
+        <p class="studio-eyebrow">COMMUNITY NOTES</p>
+        <h1 class="studio-page-title">简历社区</h1>
+        <p class="studio-page-sub">看看别人的简历怎么改，也给点建议。</p>
       </div>
     </div>
 
     <!-- ═══════════ 筛选栏 ═══════════ -->
-    <div class="filters">
+    <div class="studio-toolbar filters">
       <el-input
         v-model="filters.keyword"
         placeholder="搜索标题或内容"
@@ -299,13 +300,13 @@ function clearFilters() {
     <el-skeleton v-if="loading" :rows="5" animated />
 
     <!-- ═══════════ 空状态 ═══════════ -->
-    <div v-else-if="list.length === 0" class="empty">
-      <div class="empty-icon">简</div>
-      <p class="empty-title">{{ hasFilter ? '没有匹配的帖子' : '社区还很安静' }}</p>
-      <p class="empty-desc">
-        {{ hasFilter ? '试试换个筛选条件' : '分析完简历后，可以一键发布到这里求建议' }}
+    <div v-else-if="list.length === 0" class="studio-empty">
+      <div class="studio-empty-mark">简</div>
+      <h2>{{ hasFilter ? '没有匹配的帖子' : '社区还很安静' }}</h2>
+      <p>
+        {{ hasFilter ? '试试换个筛选条件' : '分析完简历后，可以一键发布到这里求建议。' }}
       </p>
-      <el-button v-if="hasFilter" @click="clearFilters">清除筛选</el-button>
+
     </div>
 
     <!-- ═══════════ 帖子列表 ═══════════ -->
@@ -314,7 +315,12 @@ function clearFilters() {
         v-for="(p, index) in list"
         :key="p.id"
         class="card"
+        role="button"
+        tabindex="0"
+        :aria-label="'查看帖子：' + p.title"
         @click="router.push(`/community/${p.id}`)"
+        @keydown.enter="router.push(`/community/${p.id}`)"
+        @keydown.space.prevent="router.push(`/community/${p.id}`)"
       >
         <div class="card-top">
           <div class="card-main">
@@ -360,31 +366,35 @@ function clearFilters() {
         <!-- 底部：投票 + 评论数（@click.stop 防止触发卡片跳转） -->
         <div class="card-bottom" @click.stop>
           <button
+            type="button"
             class="vote-btn"
             :class="{ active: p.myVote === 'UP' }"
+            :aria-label="`有帮助，当前 ${p.upCount} 票`"
             @click="vote(p, 'UP')"
           >
-            <span class="vote-icon">▲</span>
+            <el-icon class="vote-icon"><CaretTop /></el-icon>
             {{ p.upCount }}
           </button>
 
           <button
+            type="button"
             class="vote-btn"
             :class="{ active: p.myVote === 'DOWN' }"
+            :aria-label="`没有帮助，当前 ${p.downCount} 票`"
             @click="vote(p, 'DOWN')"
           >
-            <span class="vote-icon">▼</span>
+            <el-icon class="vote-icon"><CaretBottom /></el-icon>
             {{ p.downCount }}
           </button>
 
           <span class="stat">
-            <span class="stat-icon">💬</span>
-            {{ p.commentCount }}
+            <el-icon class="stat-icon"><ChatDotRound /></el-icon>
+            {{ p.commentCount }} 条评论
           </span>
 
           <span class="stat">
-            <span class="stat-icon">👁</span>
-            {{ p.viewCount }}
+            <el-icon class="stat-icon"><View /></el-icon>
+            {{ p.viewCount }} 次浏览
           </span>
 
           <span v-if="p.isOwner" class="owner-badge">我的</span>
@@ -465,7 +475,7 @@ function clearFilters() {
   margin: 0 auto 20px;
   border-radius: 15px;
   background: var(--gradient-brand);
-  box-shadow: 0 6px 20px rgba(41, 163, 153, 0.25);
+  box-shadow: 0 6px 20px rgba(31, 75, 62, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,7 +515,7 @@ function clearFilters() {
 }
 
 .card:hover {
-  border-color: rgba(41, 163, 153, 0.35);
+  border-color: rgba(31, 75, 62, 0.24);
   box-shadow: 0 4px 16px rgba(18, 23, 33, 0.07);
   transform: translateY(-1px);
 }
@@ -723,5 +733,73 @@ function clearFilters() {
   .filter-input {
     width: 100%;
   }
+}
+
+/* ═══════════════ 方案 C：职业工作室覆盖层 ═══════════════ */
+.page-head { margin-bottom: 0; }
+.filters { margin-bottom: 24px; padding: 12px; border-radius: var(--radius-lg); }
+.search { width: 240px; }
+.filters :deep(.el-radio-group) { margin-left: auto; }
+
+.card {
+  position: relative;
+  padding: 21px 22px 17px 24px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20px;
+  bottom: 20px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.card:hover {
+  border-color: rgba(31, 75, 62, 0.28);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card:hover::before,
+.card:focus-visible::before { opacity: 1; }
+
+.card:focus-visible {
+  outline: 3px solid rgba(238, 106, 75, 0.3);
+  outline-offset: 2px;
+}
+
+.card-title { color: var(--text); font-size: 15px; }
+.score { font-family: var(--font-serif); font-size: 26px; }
+.card-meta { margin-top: 6px; line-height: 1.7; }
+.avatar { border-radius: 7px; }
+.card-content { max-width: 860px; margin-top: 12px; font-size: 13px; }
+.card-bottom { margin-top: 14px; }
+.vote-btn { min-height: 36px; padding: 6px 9px; }
+.vote-icon { font-size: 13px; }
+.stat { gap: 5px; }
+.stat-icon { font-size: 13px; opacity: 0.8; }
+.owner-badge { border: 1px solid rgba(31, 75, 62, 0.1); }
+.pager { justify-content: center; }
+
+@media (max-width: 760px) {
+  .filters { align-items: stretch; }
+  .filters :deep(.el-radio-group) { width: 100%; margin-left: 0; }
+  .filters :deep(.el-radio-button) { flex: 1; }
+  .filters :deep(.el-radio-button__inner) { width: 100%; }
+  .card { padding: 18px 17px 15px 19px; }
+  .card-title { font-size: 14px; line-height: 1.55; }
+  .score { font-size: 23px; }
+  .card-bottom { gap: 6px; flex-wrap: wrap; }
+  .vote-btn { min-height: 44px; }
+  .stat { font-size: 11px; }
+  .owner-badge { margin-left: 0; }
 }
 </style>

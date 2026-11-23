@@ -165,4 +165,11 @@ function isRelated(prev, to) {
 .label {
   line-height: 1;
 }
+
+
+/* 方案 C：清晰的键盘焦点与移动端触控尺寸 */
+.back-btn { min-height: 36px; padding: 7px 11px 7px 7px; margin-bottom: 18px; }
+.back-btn:focus-visible { outline: 3px solid rgba(238, 106, 75, 0.34); outline-offset: 2px; }
+@media (max-width: 720px) { .back-btn { min-height: 44px; } }
+
 </style>

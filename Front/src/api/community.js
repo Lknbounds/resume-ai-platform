@@ -47,7 +47,10 @@ export const commentApi = {
   remove: (id) => http.delete(`/comments/${id}`),
 
   /** 评论投票（UP / USEFUL） */
-  vote: (id, voteType) => http.post(`/comments/${id}/votes`, { voteType })
+  vote: (id, voteType) => http.post(`/comments/${id}/votes`, { voteType }),
+
+  /** 采纳评论；传 updatedResumeContent 时同时生成简历新版本 */
+  adopt: (id, data = {}) => http.post(`/comments/${id}/adopt`, data)
 }
 
 export const privacyApi = {

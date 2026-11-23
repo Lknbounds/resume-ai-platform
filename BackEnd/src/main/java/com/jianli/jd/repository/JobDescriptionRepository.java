@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -46,6 +47,9 @@ public interface JobDescriptionRepository extends JpaRepository<JobDescription, 
     Page<JobDescription> searchByUserId(@Param("userId") Long userId,
                                         @Param("kw") String keyword,
                                         Pageable pageable);
+
+    /** 导入时一次性载入当前用户的 JD，用于批量去重。 */
+    List<JobDescription> findByUserId(Long userId);
 
     /** 统计用户存了多少个 JD */
     long countByUserId(Long userId);

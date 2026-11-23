@@ -43,6 +43,14 @@ const submitting = ref(false)
 /** 回复目标（null = 发顶层评论） */
 const replyTo = ref(null)
 
+/** 采纳建议 */
+const adoptVisible = ref(false)
+const adoptComment = ref(null)
+const adoptMode = ref('version')
+const adoptContent = ref('')
+const adoptChangeNote = ref('')
+const adoptSaving = ref(false)
+
 const sectionOptions = [
   { label: '全部', value: '' },
   { label: '技能', value: 'SKILLS' },
@@ -205,6 +213,79 @@ function severityType(sev) {
 
 /** 是否登录（未登录不能评论/投票） */
 const canInteract = computed(() => user.isLoggedIn)
+
+/** 打开采纳弹窗。默认选择“生成新版本”，并预填当前帖子里的简历正文。 */
+function openAdopt(comment) {
+  adoptComment.value = comment
+  adoptMode.value = 'version'
+  adoptContent.value = post.value?.resumeContent || ''
+  adoptChangeNote.value = ''
+  adoptVisible.value = true
+}
+
+function beforeAdoptClose(done) {
+  if (!adoptSaving.value) done()
+}
+
+async function confirmAdopt() {
+  if (!adoptComment.value || adoptSaving.value) return
+
+  const payload = {}
+  const currentContent = (post.value?.resumeContent || '').trim()
+
+  if (adoptMode.value === 'version') {
+    const nextContent = adoptContent.value.trim()
+    if (!nextContent) {
+      ElMessage.warning('请填写修改后的简历正文')
+      return
+    }
+    if (nextContent.length < 50) {
+      ElMessage.warning('简历正文至少需要 50 个字')
+      return
+    }
+    if (nextContent === currentContent) {
+      ElMessage.warning('正文还没有修改。可先改一句建议对应的内容，再生成新版本')
+      return
+    }
+    payload.updatedResumeContent = nextContent
+    if (adoptChangeNote.value.trim()) {
+      payload.changeNote = adoptChangeNote.value.trim()
+    }
+  }
+
+  adoptSaving.value = true
+  try {
+    const result = await commentApi.adopt(adoptComment.value.id, payload)
+    adoptVisible.value = false
+    await loadComments()
+
+    if (result.newVersionId) {
+      let shouldView = false
+      try {
+        await ElMessageBox.confirm(
+          `已生成 V${result.versionNo} 并开始重新分析。前往简历详情即可查看新版本和最新报告。`,
+          '采纳成功',
+          {
+            confirmButtonText: '查看新版本',
+            cancelButtonText: '留在此页',
+            type: 'success'
+          }
+        )
+        shouldView = true
+      } catch {
+        shouldView = false
+      }
+
+      if (shouldView) router.push(`/resumes/${result.resumeId}`)
+    } else if (adoptMode.value === 'version') {
+      ElMessage.warning('已标记采纳；来源报告已删除，本次未生成新版本')
+    } else {
+      ElMessage.success('已标记采纳')
+    }
+  } finally {
+    adoptSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -219,8 +300,9 @@ const canInteract = computed(() => user.isLoggedIn)
 
     <template v-else-if="post">
       <!-- ═══════════ 帖子头部 ═══════════ -->
-      <div class="post-head">
+      <div class="studio-paper post-head">
         <div class="head-main">
+          <p class="studio-eyebrow">COMMUNITY REVIEW</p>
           <h1 class="post-title">{{ post.title }}</h1>
 
           <div class="post-meta">
@@ -252,21 +334,31 @@ const canInteract = computed(() => user.isLoggedIn)
           :type="post.myVote === 'UP' ? 'primary' : 'default'"
           size="small"
           :disabled="!canInteract"
+          :aria-label="`有帮助，当前 ${post.upCount} 票`"
           @click="votePost('UP')"
         >
-          ▲ 有帮助 {{ post.upCount }}
+          <el-icon><CaretTop /></el-icon>
+          有帮助 {{ post.upCount }}
         </el-button>
 
         <el-button
           size="small"
           :disabled="!canInteract"
+          :aria-label="`没有帮助，当前 ${post.downCount} 票`"
           @click="votePost('DOWN')"
         >
-          ▼ {{ post.downCount }}
+          <el-icon><CaretBottom /></el-icon>
+          {{ post.downCount }}
         </el-button>
 
-        <span class="stat">💬 {{ post.commentCount }}</span>
-        <span class="stat">👁 {{ post.viewCount }}</span>
+        <span class="stat">
+          <el-icon><ChatDotRound /></el-icon>
+          {{ post.commentCount }}
+        </span>
+        <span class="stat">
+          <el-icon><View /></el-icon>
+          {{ post.viewCount }}
+        </span>
 
         <el-button
           v-if="post.isOwner"
@@ -284,18 +376,24 @@ const canInteract = computed(() => user.isLoggedIn)
         <!-- 左：简历 + 报告 -->
         <el-col :span="14">
           <!-- 简历正文 -->
-          <section class="card">
+          <section class="studio-paper card resume-card">
             <header class="card-head">
-              <span class="card-title">简历内容</span>
+              <div>
+                <p class="panel-kicker">RESUME SNAPSHOT</p>
+                <span class="card-title">简历内容</span>
+              </div>
               <span class="card-hint">已通过个人信息审核</span>
             </header>
             <div class="pre-wrap resume-text">{{ post.resumeContent }}</div>
           </section>
 
           <!-- 报告快照 -->
-          <section v-if="post.report" class="card">
+          <section v-if="post.report" class="studio-paper card">
             <header class="card-head">
-              <span class="card-title">分析报告</span>
+              <div>
+                <p class="panel-kicker">REVIEW REPORT</p>
+                <span class="card-title">分析报告</span>
+              </div>
               <el-tag size="small" effect="plain">{{ post.report.grade }}</el-tag>
             </header>
 
@@ -344,9 +442,9 @@ const canInteract = computed(() => user.isLoggedIn)
 
         <!-- 右：评论 -->
         <el-col :span="10">
-          <section class="card comments-card">
+          <section class="studio-paper card comments-card">
             <header class="card-head">
-              <span class="card-title">评论 {{ post.commentCount }}</span>
+              <span class="card-title">讨论 {{ post.commentCount }}</span>
               <div class="comment-filters">
                 <el-select
                   v-model="commentFilter.section"
@@ -396,14 +494,17 @@ const canInteract = computed(() => user.isLoggedIn)
 
                 <div class="c-actions">
                   <button
+                    type="button"
                     class="mini-btn"
                     :class="{ active: c.myLiked }"
                     :disabled="!canInteract"
                     @click="voteComment(c, 'UP')"
                   >
-                    ▲ {{ c.likeCount }}
+                    <el-icon><CaretTop /></el-icon>
+                    {{ c.likeCount }}
                   </button>
                   <button
+                    type="button"
                     class="mini-btn"
                     :class="{ active: c.myUseful }"
                     :disabled="!canInteract"
@@ -411,9 +512,18 @@ const canInteract = computed(() => user.isLoggedIn)
                   >
                     有用 {{ c.usefulCount }}
                   </button>
-                  <button v-if="canInteract" class="mini-btn" @click="startReply(c)">回复</button>
+                  <button v-if="canInteract" type="button" class="mini-btn" @click="startReply(c)">回复</button>
+                  <button
+                    v-if="c.canAdopt"
+                    type="button"
+                    class="mini-btn adopt-btn"
+                    @click="openAdopt(c)"
+                  >
+                    采纳
+                  </button>
                   <button
                     v-if="c.canDelete"
+                    type="button"
                     class="mini-btn danger"
                     @click="removeComment(c)"
                   >
@@ -427,19 +537,25 @@ const canInteract = computed(() => user.isLoggedIn)
                     <div class="c-head">
                       <span class="avatar sm">{{ r.author.nickname.slice(0, 1) }}</span>
                       <span class="c-nick">{{ r.author.nickname }}</span>
+                      <el-tag v-if="r.adopted" size="small" type="success" effect="dark">
+                        已采纳
+                      </el-tag>
                       <span class="c-time">{{ relativeTime(r.createdAt) }}</span>
                     </div>
                     <p class="c-content">{{ r.content }}</p>
                     <div class="c-actions">
                       <button
+                        type="button"
                         class="mini-btn"
                         :class="{ active: r.myLiked }"
                         :disabled="!canInteract"
                         @click="voteComment(r, 'UP')"
                       >
-                        ▲ {{ r.likeCount }}
+                        <el-icon><CaretTop /></el-icon>
+                        {{ r.likeCount }}
                       </button>
                       <button
+                        type="button"
                         class="mini-btn"
                         :class="{ active: r.myUseful }"
                         :disabled="!canInteract"
@@ -448,7 +564,16 @@ const canInteract = computed(() => user.isLoggedIn)
                         有用 {{ r.usefulCount }}
                       </button>
                       <button
+                        v-if="r.canAdopt"
+                        type="button"
+                        class="mini-btn adopt-btn"
+                        @click="openAdopt(r)"
+                      >
+                        采纳
+                      </button>
+                      <button
                         v-if="r.canDelete"
+                        type="button"
                         class="mini-btn danger"
                         @click="removeComment(r)"
                       >
@@ -491,6 +616,93 @@ const canInteract = computed(() => user.isLoggedIn)
         </el-col>
       </el-row>
     </template>
+
+    <!-- 采纳建议：标记认可，或基于建议直接生成简历新版本 -->
+    <el-dialog
+      v-model="adoptVisible"
+      class="adopt-dialog"
+      width="680px"
+      align-center
+      destroy-on-close
+      :show-close="!adoptSaving"
+      :close-on-click-modal="!adoptSaving"
+      :close-on-press-escape="!adoptSaving"
+      :before-close="beforeAdoptClose"
+    >
+      <template #header>
+        <div class="adopt-heading">
+          <p class="studio-eyebrow">TURN FEEDBACK INTO A VERSION</p>
+          <h2>采纳这条建议</h2>
+        </div>
+      </template>
+
+      <div v-if="adoptComment" class="adopt-body">
+        <blockquote class="adopt-quote">
+          <div class="adopt-quote-meta">
+            <span>{{ adoptComment.author.nickname }}</span>
+            <span class="quote-dot">·</span>
+            <span>{{ adoptComment.sectionLabel }}</span>
+          </div>
+          <p>{{ adoptComment.content }}</p>
+        </blockquote>
+
+        <div class="adopt-mode-title">处理方式</div>
+        <el-radio-group v-model="adoptMode" class="adopt-mode-grid">
+          <el-radio value="version" border class="adopt-mode-card">
+            <span class="mode-name">采纳并生成新版本</span>
+            <span class="mode-desc">在来源简历上新增版本，并自动重新分析</span>
+          </el-radio>
+          <el-radio value="mark" border class="adopt-mode-card">
+            <span class="mode-name">仅标记采纳</span>
+            <span class="mode-desc">认可这条建议，不修改简历内容</span>
+          </el-radio>
+        </el-radio-group>
+
+        <div v-if="adoptMode === 'version'" class="adopt-editor">
+          <div class="editor-label">
+            <label for="adopt-content">修改后的简历正文</label>
+            <span>{{ adoptContent.trim().length }} 字</span>
+          </div>
+          <el-input
+            id="adopt-content"
+            v-model="adoptContent"
+            type="textarea"
+            :rows="12"
+            maxlength="200000"
+            resize="vertical"
+            placeholder="在帖子简历的基础上，按这条建议修改"
+          />
+
+          <div class="editor-label change-label">
+            <label for="adopt-change-note">变更说明</label>
+            <span>选填</span>
+          </div>
+          <el-input
+            id="adopt-change-note"
+            v-model="adoptChangeNote"
+            maxlength="255"
+            show-word-limit
+            placeholder="例如：补充项目 QPS 与缓存命中率"
+          />
+
+          <p class="adopt-tip">
+            正文已预填帖子里的版本。请至少修改一处相关表述；内容未变化时不会创建新版本。
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="adopt-footer">
+          <span>新版本只会写入你自己的简历</span>
+          <div>
+            <el-button :disabled="adoptSaving" @click="adoptVisible = false">取消</el-button>
+            <el-button type="primary" :loading="adoptSaving" @click="confirmAdopt">
+              确认采纳
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </DefaultLayout>
 </template>
 
@@ -926,4 +1138,284 @@ const canInteract = computed(() => user.isLoggedIn)
     max-height: none;
   }
 }
+
+/* ═══════════════ 方案 C：职业工作室覆盖层 ═══════════════ */
+.post-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 16px;
+  padding: 28px 30px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(242, 193, 91, 0.18), transparent 12rem),
+    var(--surface);
+}
+
+.post-title {
+  max-width: 760px;
+  font-family: var(--font-serif);
+  font-size: clamp(30px, 4vw, 45px);
+  line-height: 1.22;
+  letter-spacing: -0.035em;
+  color: var(--text);
+  margin: 0;
+}
+
+.post-meta { margin-top: 17px; }
+.post-content {
+  max-width: 760px;
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.head-side {
+  min-width: 104px;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: var(--brand);
+  color: #fff;
+}
+
+.big-score {
+  font-family: var(--font-serif);
+  font-size: 46px;
+  color: #fff !important;
+}
+
+.score-label { color: rgba(255, 255, 255, 0.62); }
+
+.vote-bar {
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: rgba(255, 252, 247, 0.76);
+}
+
+.stat { display: inline-flex; align-items: center; gap: 5px; margin-inline: 3px; }
+
+.card {
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-kicker {
+  margin: 0 0 3px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.card-title { font-family: var(--font-serif); font-size: 18px; font-weight: 700; }
+.resume-text { color: var(--text); font-family: var(--font-serif); font-size: 13.5px; line-height: 2; }
+.dim-bar { height: 5px; }
+.comments-card { top: 92px; }
+.reply-hint { color: var(--accent-deep); }
+.mini-btn { min-height: 32px; }
+
+@media (max-width: 900px) {
+  .post-head { padding: 22px; }
+  .head-side { min-width: 88px; }
+  .vote-bar { flex-wrap: wrap; }
+}
+
+@media (max-width: 620px) {
+  .post-head { align-items: flex-start; flex-direction: column; padding: 20px 17px; }
+  .post-title { font-size: 30px; }
+  .head-side { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+  .big-score { font-size: 32px; }
+  .score-label { margin: 0; }
+  .vote-bar :deep(.el-button) { flex: 1 1 120px; }
+  .card { padding: 15px; }
+  .comment-filters { flex-wrap: wrap; justify-content: flex-end; }
+  .mini-btn { min-height: 44px; }
+  .composer-foot { align-items: flex-start; flex-direction: column; }
+  .composer-foot :deep(.el-button) { width: 100%; }
+}
+/* ═══════════════ 采纳建议 ═══════════════ */
+.adopt-btn {
+  color: var(--accent-deep);
+  background: rgba(242, 193, 91, 0.17);
+  font-weight: 700;
+}
+
+.adopt-btn:hover:not(:disabled) {
+  color: #fff;
+  background: var(--accent-deep);
+}
+
+:global(.adopt-dialog) {
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 28px 90px rgba(31, 45, 39, 0.2);
+}
+
+:global(.adopt-dialog .el-dialog__header) {
+  margin: 0;
+  padding: 28px 30px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+:global(.adopt-dialog .el-dialog__body) {
+  padding: 22px 30px 10px;
+}
+
+:global(.adopt-dialog .el-dialog__footer) {
+  padding: 16px 30px 24px;
+}
+
+.adopt-heading h2 {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 28px;
+  letter-spacing: -0.025em;
+}
+
+.adopt-quote {
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  border: 1px solid rgba(31, 75, 62, 0.13);
+  border-left: 4px solid var(--brand);
+  border-radius: 0 14px 14px 0;
+  background: rgba(31, 75, 62, 0.045);
+}
+
+.adopt-quote-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  color: var(--brand-deep);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.quote-dot { color: var(--text-faint); }
+
+.adopt-quote p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.adopt-mode-title {
+  margin-bottom: 9px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.adopt-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.adopt-mode-card {
+  align-items: flex-start;
+  width: 100%;
+  height: auto;
+  min-height: 76px;
+  margin: 0 !important;
+  padding: 13px 14px !important;
+  border-color: var(--line-soft) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 252, 247, 0.7);
+}
+
+.adopt-mode-card.is-checked {
+  border-color: var(--brand) !important;
+  background: var(--brand-soft) !important;
+}
+
+.adopt-mode-card :deep(.el-radio__label) {
+  display: grid;
+  gap: 4px;
+  padding-left: 8px;
+  white-space: normal;
+}
+
+.mode-name {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.mode-desc {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.adopt-editor {
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: rgba(255, 252, 247, 0.72);
+}
+
+.editor-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.editor-label span {
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.change-label { margin-top: 14px; }
+
+.adopt-editor :deep(.el-textarea__inner),
+.adopt-editor :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  background: #fffdf9;
+  box-shadow: 0 0 0 1px var(--line-soft) inset;
+}
+
+.adopt-editor :deep(.el-textarea__inner) {
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+
+.adopt-tip {
+  margin: 11px 0 0;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.adopt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.adopt-footer > span {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
 </style>

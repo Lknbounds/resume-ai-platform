@@ -222,7 +222,15 @@ public class CommentService {
 
         if (post != null) {
             post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
+
+            /*
+             * 评论数直接参与热度计算，删除评论后立即同步数据库和 Redis。
+             * 本项目并发量小，不需要等十分钟定时任务再修正。
+             */
+            double hot = hotScoreService.compute(post);
+            post.setHotScore(hot);
             postRepository.save(post);
+            hotScoreService.updateZset(post.getId(), hot);
         }
     }
 
@@ -255,6 +263,10 @@ public class CommentService {
         boolean isOwner = currentUserId != null && currentUserId.equals(c.getUserId());
         boolean canDelete = isOwner
                 || (currentUserId != null && currentUserId.equals(postAuthorId));
+        boolean canAdopt = currentUserId != null
+                && currentUserId.equals(postAuthorId)
+                && !isOwner
+                && !Boolean.TRUE.equals(c.getAdopted());
 
         return new CommentVO(
                 c.getId(),
@@ -272,6 +284,7 @@ public class CommentService {
                 c.getAdoptedVersionId(),
                 canDelete,
                 isOwner,
+                canAdopt,
                 c.getCreatedAt(),
                 withReplies ? replies : null
         );

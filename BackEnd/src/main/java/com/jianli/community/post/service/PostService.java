@@ -397,8 +397,8 @@ public class PostService {
         int safePage = Math.max(page - 1, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
 
-        Page<Post> p = postRepository.findByUserIdOrderByCreatedAtDesc(
-                userId, PageRequest.of(safePage, safeSize));
+        Page<Post> p = postRepository.findByUserIdAndStatusOrderByCreatedAtDesc(
+                userId, "PUBLISHED", PageRequest.of(safePage, safeSize));
 
         return assemblePage(p, safePage, safeSize, userId);
     }
@@ -423,6 +423,19 @@ public class PostService {
          *   ★ 但如果每 10 分钟有几千次浏览，就该改成 Redis 了。
          */
         post.setViewCount(post.getViewCount() + 1);
+
+        /*
+         * ★ 本项目并发量很小，浏览数变化后直接重算热度。
+         *
+         *   浏览数本身会进入热度公式：
+         *       log10(viewCount + 1) × 3
+         *   如果只在定时任务里重算，用户看完帖子后热度榜最长要等 10 分钟
+         *   才会反映这次浏览。即时更新更符合当前体量，也让排序行为更直观。
+         */
+        double hot = hotScoreService.compute(post);
+        post.setHotScore(hot);
+        postRepository.save(post);
+        hotScoreService.updateZset(post.getId(), hot);
 
         String nickname = userRepository.findById(post.getUserId())
                 .map(AppUser::getNickname).orElse("已注销用户");

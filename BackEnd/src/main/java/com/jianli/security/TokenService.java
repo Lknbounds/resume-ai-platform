@@ -246,9 +246,10 @@ public class TokenService {
      *   这是本类最热的方法，所以用最轻的 EXISTS。
      *
      * ★ Redis 挂了会怎样？
-     *   抛异常 → JwtAuthenticationFilter 里 catch 后当作"未登录"处理 → 返回 401。
-     *   这是"宁可拒绝也不放行"的安全选择。
-     *   （另一种选择是 catch 后放行，可用性更好但安全性更差，本项目选前者。）
+     *   本方法会抛 Redis 连接异常。当前 JwtAuthenticationFilter 只捕获
+     *   JwtException / IllegalArgumentException，因此该异常不会被统一转换成
+     *   “未登录”401；这是认证链路尚未补齐的故障边界。后续应显式区分
+     *   “Token 无效”和“依赖不可用”，分别映射为 401 与 503。
      */
     public boolean isBlacklisted(String jti) {
         return Boolean.TRUE.equals(redis.hasKey(RedisKeys.blacklist(jti)));

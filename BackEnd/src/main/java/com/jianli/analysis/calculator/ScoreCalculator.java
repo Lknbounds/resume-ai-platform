@@ -385,6 +385,7 @@ public class ScoreCalculator {
 
         int score = 0;
         List<String> missing = new java.util.ArrayList<>();
+        List<String> inferred = new java.util.ArrayList<>();
 
         for (Map.Entry<String, Integer> e : sectionScore.entrySet()) {
             if (present.contains(e.getKey())) {
@@ -407,6 +408,20 @@ public class ScoreCalculator {
         if (missing.contains("BASIC_INFO") && hasContactInfo(text)) {
             missing.remove("BASIC_INFO");
             score += sectionScore.get("BASIC_INFO");
+            inferred.add("个人信息");
+        }
+
+        /*
+         * ★ 教育经历同样不能只看标题。
+         *
+         *   很多模板只写"北京大学 / 计算机科学与技术 / 2020-2024"，
+         *   没有"教育背景"标题。正文里已有学校、学历或专业时，
+         *   教育经历事实上是存在的，结构分不应把这段内容当成没写。
+         */
+        if (missing.contains("EDUCATION") && hasEducationEvidence(resume)) {
+            missing.remove("EDUCATION");
+            score += sectionScore.get("EDUCATION");
+            inferred.add("教育背景");
         }
 
         // 内容过少的额外扣分
@@ -421,13 +436,25 @@ public class ScoreCalculator {
 
         String detail;
         if (missing.isEmpty()) {
-            detail = "五个板块齐全";
+            detail = inferred.isEmpty()
+                    ? "五个板块齐全"
+                    : "五个板块内容齐全（%s按正文内容识别）"
+                            .formatted(String.join("、", inferred));
         } else {
             detail = "缺少板块：" + String.join("、", missing.stream()
                     .map(this::sectionName).toList());
         }
 
         return new DimensionScore("structureCompleteness", "结构完整度", score, true, detail);
+    }
+
+    /** 简历中是否有可验证的教育经历内容，而不是只有"教育背景"四个字。 */
+    private boolean hasEducationEvidence(ResumeParsed resume) {
+        if (resume == null || resume.education() == null) return false;
+        ResumeParsed.Education education = resume.education();
+        return (education.degree() != null && !"NONE".equals(education.degree()))
+                || (education.school() != null && !education.school().isBlank())
+                || (education.major() != null && !education.major().isBlank());
     }
 
     /**
@@ -485,11 +512,26 @@ public class ScoreCalculator {
         int jdRank = rank(required);
         int resumeRank = rank(resume.education() == null ? "NONE" : resume.education().degree());
 
+        /*
+         * 已识别到学校/专业，但没有明确学历层次：
+         *   - 不是"没有教育经历"，不能按完全缺失处理；
+         *   - 也不能猜测用户就是本科/硕士，所以只给部分分并明确提示补充。
+         */
+        if (resumeRank == 0 && hasEducationEvidence(resume)) {
+            String evidence = resume.education().school() != null && !resume.education().school().isBlank()
+                    ? resume.education().school()
+                    : resume.education().major();
+            return new DimensionScore(
+                    "educationMatch", "学历匹配", 40, true,
+                    "已识别到教育经历（%s），但未识别学历层次；明确填写本科/硕士等后可准确匹配"
+                            .formatted(evidence));
+        }
+
         int diff = jdRank - resumeRank;
         double score = diff <= 0 ? 100 : diff == 1 ? 60 : diff == 2 ? 30 : 0;
 
         String detail = resumeRank == 0
-                ? "简历中未识别到学历"
+                ? "简历中未识别到教育经历或学历层次"
                 : "简历 %s / JD 要求 %s".formatted(degreeName(rankToDegree(resumeRank)), degreeName(required));
 
         return new DimensionScore("educationMatch", "学历匹配", score, true, detail);

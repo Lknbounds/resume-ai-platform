@@ -19,6 +19,8 @@ const analysisLoading = ref(false)
 const detail = ref(null)
 const version = ref(null)
 const analysisReport = ref(null)
+const analysisReports = ref([])
+const selectedReportId = ref(null)
 const activeVersionId = ref(null)
 const draft = ref('')
 const changeNote = ref('')
@@ -100,19 +102,54 @@ async function loadVersion(versionId) {
 async function loadAnalysis(versionId) {
   analysisLoading.value = true
   analysisReport.value = null
+  analysisReports.value = []
+  selectedReportId.value = null
   try {
     const page = await analysisApi.list({
       resumeVersionId: versionId,
       page: 1,
-      size: 1
+      size: 50
     })
-    const latest = page.records?.[0]
-    analysisReport.value = latest ? await analysisApi.detail(latest.id) : null
+
+    // 历史按时间倒序。同一 JD 重复分析时，只保留该 JD 最新的一次。
+    const seenJds = new Set()
+    analysisReports.value = (page.records || []).filter((record) => {
+      const key = record.jdId ?? `report-${record.id}`
+      if (seenJds.has(key)) return false
+      seenJds.add(key)
+      return true
+    })
+
+    const latest = analysisReports.value[0]
+    if (latest) {
+      selectedReportId.value = latest.id
+      analysisReport.value = await analysisApi.detail(latest.id)
+    }
   } catch {
     analysisReport.value = null
+    analysisReports.value = []
+    selectedReportId.value = null
   } finally {
     analysisLoading.value = false
   }
+}
+
+async function selectAnalysisRecord(record) {
+  if (!record || record.id === selectedReportId.value) return
+  analysisLoading.value = true
+  try {
+    analysisReport.value = await analysisApi.detail(record.id)
+    selectedReportId.value = record.id
+  } catch {
+    ElMessage.error('读取这次分析记录失败，请稍后重试')
+  } finally {
+    analysisLoading.value = false
+  }
+}
+
+function formatAnalysisTime(value) {
+  if (!value) return ''
+  return value.replace('T', ' ').slice(0, 16)
 }
 
 async function refreshAnalysis() {
@@ -347,6 +384,33 @@ function buildSuggestions(text, targetPosition) {
           <p>{{ suggestionSummary }}</p>
         </div>
 
+        <div v-if="analysisReports.length" class="analysis-history">
+          <div class="analysis-history-head">
+            <strong>岗位匹配记录</strong>
+            <span>{{ analysisReports.length }} 个岗位</span>
+          </div>
+          <div class="analysis-history-list">
+            <button
+              v-for="record in analysisReports"
+              :key="record.id"
+              type="button"
+              class="analysis-record"
+              :class="{ active: selectedReportId === record.id }"
+              @click="selectAnalysisRecord(record)"
+            >
+              <span class="analysis-record-main">
+                <span class="analysis-record-title">{{ record.jdTitle || '岗位信息已删除' }}</span>
+                <span class="analysis-record-meta">
+                  {{ record.jdCompany ? `${record.jdCompany} · ` : '' }}{{ formatAnalysisTime(record.createdAt) }}
+                </span>
+              </span>
+              <span class="analysis-record-score">
+                {{ record.overallScore != null ? record.overallScore.toFixed(1) : '—' }}<small>分</small>
+              </span>
+            </button>
+          </div>
+        </div>
+
         <div class="suggestion-list">
           <article v-for="item in suggestions" :key="item.title" class="suggestion-item">
             <div class="suggestion-top">
@@ -479,7 +543,7 @@ function buildSuggestions(text, targetPosition) {
 }
 
 .word-editor:focus {
-  box-shadow: inset 0 0 0 2px rgba(41, 163, 153, 0.22);
+  box-shadow: inset 0 0 0 2px rgba(238, 106, 75, 0.3);
 }
 
 .editor-foot {
@@ -533,10 +597,125 @@ function buildSuggestions(text, targetPosition) {
   line-height: 1.7;
 }
 
+.suggestion-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.analysis-history {
+  margin: 12px 13px 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.analysis-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-deep);
+}
+
+.analysis-history-head strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.analysis-history-head span {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.analysis-history-list {
+  display: grid;
+  gap: 5px;
+  max-height: 144px;
+  padding: 7px;
+  overflow-y: auto;
+}
+
+.analysis-record {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.analysis-record:hover {
+  border-color: var(--line-soft);
+  background: var(--surface-deep);
+}
+
+.analysis-record:focus-visible {
+  outline: 2px solid rgba(31, 75, 62, 0.5);
+  outline-offset: 1px;
+}
+
+.analysis-record.active {
+  border-color: rgba(238, 106, 75, 0.36);
+  background: var(--accent-soft);
+}
+
+.analysis-record-main {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.analysis-record-title {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.analysis-record-meta {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.analysis-record-score {
+  flex: 0 0 auto;
+  color: var(--brand-deep);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-record-score small {
+  margin-left: 2px;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+}
+
 .suggestion-list {
   display: grid;
   gap: 10px;
+  max-height: 390px;
   padding: 13px;
+  overflow-y: auto;
 }
 
 .suggestion-item {
@@ -580,4 +759,38 @@ function buildSuggestions(text, targetPosition) {
 :deep(.resume-workspace-dialog .el-dialog__body) {
   padding: 16px;
 }
+
+
+/* 方案 C 工作台覆盖层 */
+.workspace-eyebrow, .pane-kicker { font-family: var(--font-mono); letter-spacing: 0.13em; }
+.workspace-header h2 { font-family: var(--font-serif); font-size: 26px; }
+.workspace-pane { border-radius: 16px; }
+.word-editor {
+  background:
+    linear-gradient(rgba(255, 252, 247, 0.94), rgba(255, 252, 247, 0.94)),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(112, 95, 70, 0.075) 31px 32px);
+  font-family: var(--font-serif);
+}
+.word-editor:focus { box-shadow: inset 0 0 0 2px rgba(238, 106, 75, 0.3); }
+.suggestion-summary { border-left-color: var(--accent); background: var(--accent-soft); }
+.suggestion-summary strong { color: var(--text); }
+.suggestion-item { background: var(--surface-deep); border-radius: 12px; }
+@media (max-width: 980px) {
+  .workspace-grid { grid-template-columns: 1fr; min-height: 0; }
+  .word-editor { min-height: 430px; padding: 24px 24px; }
+  .workspace-loading { min-height: 420px; }
+}
+@media (max-width: 720px) {
+  .workspace-header { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .workspace-header h2 { font-size: 22px; }
+  .workspace-meta { justify-content: flex-start; }
+  .pane-head { align-items: flex-start; flex-direction: column; }
+  .editor-actions, .suggestion-actions { width: 100%; flex-wrap: wrap; }
+  .editor-actions :deep(.el-button), .suggestion-actions :deep(.el-button) { flex: 1 1 120px; }
+  .word-editor { min-height: 360px; padding: 20px 17px; font-size: 14px; }
+  .editor-foot { align-items: stretch; flex-direction: column; }
+  .editor-hint { text-align: right; }
+  :deep(.resume-workspace-dialog .el-dialog__body) { padding: 10px; }
+}
+
 </style>

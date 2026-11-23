@@ -107,6 +107,9 @@ public record ResumeSummaryVO(
          */
         Double latestScore,
 
+        /** 最新报告 id，前端可用它直接打开对应岗位的分析报告。 */
+        Long latestReportId,
+
         /**
          * 最新一次分析用的岗位名。
          *
@@ -116,6 +119,15 @@ public record ResumeSummaryVO(
          *   两者可能不同（用户建简历时没填岗位，分析时才选）。
          */
         String latestJdTitle,
+
+        /** 最新一次分析对应岗位的公司，可能为空。 */
+        String latestJdCompany,
+
+        /** 最新一次完成分析的时间。 */
+        LocalDateTime latestAnalyzedAt,
+
+        /** 当前简历版本一共分析过多少个不同岗位。 */
+        Integer analyzedJdCount,
 
         /**
          * 最后更新时间。

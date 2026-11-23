@@ -140,6 +140,8 @@ public enum ErrorCode {
     // ═══════ JD 41xxx ═══════
     JD_NOT_FOUND(41001, 404, "岗位描述不存在"),
     JD_CONTENT_INVALID(41002, 400, "JD 内容过短（至少 30 字）"),
+    // 文件导入必须能识别出岗位标题，否则无法建立可辨认的 JD 记录。
+    JD_IMPORT_FORMAT_INVALID(41003, 400, "JD 文件格式不正确"),
 
     // ═══════ 分析 42xxx ═══════
     ANALYSIS_NOT_FOUND(42001, 404, "分析报告不存在"),

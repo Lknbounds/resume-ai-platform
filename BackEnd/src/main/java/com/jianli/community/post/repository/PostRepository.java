@@ -23,8 +23,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Optional<Post> findByIdAndStatus(Long id, String status);
 
-    /** 我的帖子（含匿名帖 —— 自己看得见自己的） */
-    Page<Post> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    /** 我的帖子（含匿名帖 —— 自己看得见自己的；已删除的不再展示） */
+    Page<Post> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, String status, Pageable pageable);
 
     /**
      * ═══════════════════════════════════════════════════════════════

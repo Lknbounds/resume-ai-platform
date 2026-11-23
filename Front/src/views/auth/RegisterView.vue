@@ -28,6 +28,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router = useRouter()
 const user = useUserStore()
@@ -161,23 +162,21 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <el-card class="auth-card" shadow="never">
-      <div class="auth-head">
-        <div class="logo-wrap">
-          <span class="logo">简</span>
-        </div>
-        <h2>创建账号</h2>
-        <p>注册后即可分析简历、发布互评</p>
-      </div>
-
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        @keyup.enter="submit"
-      >
+  <AuthShell
+    heading="创建你的工作台"
+    description="注册后即可保存简历版本、分析岗位匹配，并发布互评。"
+    alt-text="已有账号？"
+    alt-link-label="去登录"
+    @alt="router.push('/login')"
+  >
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-position="top"
+      @keyup.enter="submit"
+    >
+      <div class="form-grid">
         <el-form-item label="用户名" prop="username">
           <el-input
             v-model="form.username"
@@ -189,7 +188,7 @@ async function submit() {
         <el-form-item label="昵称" prop="nickname">
           <el-input
             v-model="form.nickname"
-            placeholder="展示给其他用户的名字"
+            placeholder="展示给其他用户"
             maxlength="16"
             show-word-limit
             size="large"
@@ -201,7 +200,7 @@ async function submit() {
             v-model="form.password"
             type="password"
             show-password
-            placeholder="至少 8 位，含字母和数字"
+            placeholder="8 位以上，含字母数字"
             size="large"
           />
         </el-form-item>
@@ -215,92 +214,54 @@ async function submit() {
             size="large"
           />
         </el-form-item>
-
-        <el-button
-          type="primary"
-          :loading="loading"
-          class="full"
-          size="large"
-          @click="submit"
-        >
-          注册
-        </el-button>
-      </el-form>
-
-      <div class="auth-foot">
-        已有账号？
-        <el-link type="primary" @click="router.push('/login')">去登录</el-link>
       </div>
-    </el-card>
-  </div>
+
+      <el-button
+        type="primary"
+        :loading="loading"
+        class="full"
+        size="large"
+        @click="submit"
+      >
+        创建账号
+      </el-button>
+    </el-form>
+  </AuthShell>
 </template>
 
 <style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  padding: 24px;
-}
-
-.auth-card {
-  width: 400px;
-  border-radius: var(--radius-lg);
-  padding: 8px;
-}
-
-.auth-head {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  background: var(--gradient-brand);
-  box-shadow: 0 6px 20px rgba(41, 163, 153, 0.28);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.auth-head h2 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.auth-head p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
 .full {
   width: 100%;
   margin-top: 8px;
 }
 
-.auth-foot {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 14px;
+}
+
+:deep(.el-form-item) {
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+:deep(.el-form-item__label) {
+  padding-bottom: 7px;
+  font-size: 12px;
+}
+
+:deep(.el-input__wrapper) {
+  min-height: 46px;
+}
+
+@media (max-width: 980px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :deep(.el-form-item) {
+    margin-bottom: 16px;
+  }
 }
 </style>

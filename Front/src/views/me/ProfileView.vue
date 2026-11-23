@@ -194,60 +194,99 @@ async function changePassword() {
 
 <template>
   <DefaultLayout>
-    <BackButton to="/" label="返回" />
+    <BackButton to="/" label="返回首页" />
 
-    <el-card shadow="never" style="max-width: 640px">
-      <template #header>个人资料</template>
+    <div class="profile-page">
+      <header class="studio-page-head">
+        <div class="studio-page-copy">
+          <p class="studio-eyebrow">PROFILE</p>
+          <h1 class="studio-page-title">个人资料</h1>
+          <p class="studio-page-sub">让分析与建议更贴近你的岗位目标和经验阶段。</p>
+        </div>
+      </header>
 
-      <el-form label-width="100px">
-        <!--
-          ★ 用户名用 :model-value 而不是 v-model，并且 disabled。
-            :model-value 是"单向绑定"：只显示，不回写。
-            ★ 为什么用户名不能改？
-              它是登录凭证，改了会影响所有历史数据（帖子作者、评论等）。
-              真实产品里"改用户名"是个很复杂的功能（需要重名检查、
-              路由重定向等），本项目不做。
-        -->
-        <el-form-item label="用户名">
-          <el-input :model-value="user.profile?.username" disabled />
-        </el-form-item>
+      <div class="profile-grid">
+        <aside class="studio-paper identity-card">
+          <div class="identity-top">
+            <span class="avatar" aria-hidden="true">
+              {{ user.displayName?.slice(0, 1) || '简' }}
+            </span>
+            <span class="member-label">CAREER STUDIO MEMBER</span>
+          </div>
 
-        <el-form-item label="昵称">
-          <el-input v-model="form.nickname" maxlength="16" show-word-limit />
-        </el-form-item>
+          <h2>{{ user.displayName || '未设置昵称' }}</h2>
+          <p class="username">@{{ user.profile?.username || '-' }}</p>
 
-        <el-form-item label="目标岗位">
-          <el-input v-model="form.targetPosition" placeholder="如 Java 后端开发工程师" />
-        </el-form-item>
+          <dl class="identity-facts">
+            <div>
+              <dt>目标岗位</dt>
+              <dd>{{ form.targetPosition || '尚未设置' }}</dd>
+            </div>
+            <div>
+              <dt>经验年限</dt>
+              <dd>{{ form.yearsOfExperience ?? 0 }} 年</dd>
+            </div>
+          </dl>
 
-        <el-form-item label="经验年限">
-          <!--
-            ★ el-input-number 是数字输入框，自带加减按钮和范围限制
-              :min / :max 会阻止用户输入超出范围的值
-          -->
-          <el-input-number v-model="form.yearsOfExperience" :min="0" :max="50" />
-          <span class="unit">年</span>
-        </el-form-item>
+          <div class="identity-foot">
+            <p><span>加入时间</span>{{ user.profile?.createdAt || '-' }}</p>
+            <p><span>最近登录</span>{{ user.profile?.lastLoginAt || '-' }}</p>
+          </div>
+        </aside>
 
-        <el-form-item>
-          <el-button type="primary" :loading="saving" @click="save">保存</el-button>
-          <el-button @click="pwdVisible = true">修改密码</el-button>
-        </el-form-item>
-      </el-form>
+        <section class="studio-paper settings-card">
+          <header class="settings-head">
+            <div>
+              <p class="panel-kicker">PROFILE DETAILS</p>
+              <h2>编辑资料</h2>
+            </div>
+            <span class="settings-note">用户名作为登录凭证，暂不支持修改</span>
+          </header>
 
-      <el-divider />
+          <el-form label-position="top" class="profile-form">
+            <div class="form-grid">
+              <el-form-item label="用户名">
+                <el-input :model-value="user.profile?.username" disabled />
+              </el-form-item>
 
-      <el-descriptions :column="2" size="small" border>
-        <el-descriptions-item label="注册时间">
-          {{ user.profile?.createdAt || '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="最后登录">
-          {{ user.profile?.lastLoginAt || '-' }}
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-card>
+              <el-form-item label="昵称">
+                <el-input v-model="form.nickname" maxlength="16" show-word-limit />
+              </el-form-item>
 
-    <!-- ═══════════ 修改密码弹窗 ═══════════ -->
+              <el-form-item label="目标岗位">
+                <el-input
+                  v-model="form.targetPosition"
+                  placeholder="如：Java 后端开发工程师"
+                />
+              </el-form-item>
+
+              <el-form-item label="经验年限">
+                <div class="experience-field">
+                  <el-input-number v-model="form.yearsOfExperience" :min="0" :max="50" />
+                  <span class="unit">年</span>
+                </div>
+              </el-form-item>
+            </div>
+
+            <div class="form-actions">
+              <el-button type="primary" :loading="saving" @click="save">
+                保存资料
+              </el-button>
+            </div>
+          </el-form>
+
+          <div class="security-row">
+            <div>
+              <p class="security-kicker">ACCOUNT SECURITY</p>
+              <h3>账户安全</h3>
+              <p>修改密码后，所有设备都需要重新登录。</p>
+            </div>
+            <el-button @click="pwdVisible = true">修改密码</el-button>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <el-dialog v-model="pwdVisible" title="修改密码" width="420px">
       <el-alert
         type="warning"
@@ -257,7 +296,7 @@ async function changePassword() {
         style="margin-bottom: 16px"
       />
 
-      <el-form label-width="90px">
+      <el-form label-position="top">
         <el-form-item label="原密码">
           <el-input v-model="pwd.oldPassword" type="password" show-password />
         </el-form-item>
@@ -282,9 +321,221 @@ async function changePassword() {
 </template>
 
 <style scoped>
-.unit {
-  margin-left: 8px;
-  color: #909399;
+.profile-page { max-width: 1040px; padding-bottom: 48px; }
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.62fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.identity-card {
+  position: relative;
+  overflow: hidden;
+  padding: 25px;
+  background:
+    radial-gradient(circle at 92% 7%, rgba(242, 193, 91, 0.26), transparent 8rem),
+    var(--brand);
+  color: #fff;
+}
+
+.identity-card::after {
+  content: '';
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  right: -38px;
+  bottom: -38px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+}
+
+.identity-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.08);
+}
+
+.member-label {
+  color: rgba(255, 255, 255, 0.62);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.identity-card h2 {
+  margin: 29px 0 3px;
+  font-family: var(--font-serif);
+  font-size: 27px;
+  line-height: 1.35;
+}
+
+.username {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+}
+
+.identity-facts {
+  display: grid;
+  gap: 1px;
+  margin: 24px 0 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.identity-facts div {
+  padding: 13px 14px;
+  background: rgba(23, 58, 48, 0.28);
+}
+
+.identity-facts dt {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+}
+
+.identity-facts dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #fff;
   font-size: 13px;
+  font-weight: 650;
+}
+
+.identity-foot {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.identity-foot p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10.5px;
+}
+
+.identity-foot span { color: rgba(255, 255, 255, 0.52); }
+
+.settings-card { overflow: hidden; }
+
+.settings-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px 17px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.panel-kicker,
+.security-kicker {
+  margin: 0 0 5px;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.settings-head h2,
+.security-row h3 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.settings-note {
+  max-width: 260px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.profile-form { padding: 22px 24px 24px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 18px;
+}
+
+.experience-field {
+  display: flex;
+  align-items: center;
+}
+
+.unit {
+  margin-left: 9px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 3px;
+}
+
+.security-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface-deep);
+}
+
+.security-row h3 { font-size: 18px; }
+
+.security-row p:not(.security-kicker) {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 820px) {
+  .profile-grid { grid-template-columns: 1fr; }
+  .identity-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .identity-top, .identity-card h2, .username { grid-column: 1; }
+  .identity-facts { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
+  .identity-foot { grid-column: 1 / -1; }
+}
+
+@media (max-width: 620px) {
+  .identity-card { display: block; padding: 22px; }
+  .identity-facts { margin-top: 22px; }
+  .settings-head { align-items: flex-start; flex-direction: column; padding: 19px 18px 16px; }
+  .settings-note { text-align: left; }
+  .profile-form { padding: 18px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-actions :deep(.el-button) { width: 100%; }
+  .security-row { align-items: stretch; flex-direction: column; padding: 18px; }
+  .security-row :deep(.el-button) { width: 100%; }
 }
 </style>

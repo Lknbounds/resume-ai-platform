@@ -8,9 +8,9 @@ import http from './http'
  */
 export const jdApi = {
   /**
-   * 我的 JD 列表（不分页，最多 100 条）。
+   * 我的 JD 列表（分页）。
    *
-   * @param {{keyword?: string}} params 可选关键词，匹配岗位名或公司名
+   * @param {{keyword?: string, page?: number, size?: number}} params
    */
   list: (params) => http.get('/jds', { params: params || {} }),
 
@@ -29,5 +29,17 @@ export const jdApi = {
   update: (id, data) => http.put(`/jds/${id}`, data),
 
   /** 删除 JD（级联删除相关分析报告） */
-  remove: (id) => http.delete(`/jds/${id}`)
+  remove: (id) => http.delete(`/jds/${id}`),
+
+  /**
+   * 从 Markdown/TXT 文件导入 JD。
+   *
+   * 不手动设置 Content-Type：浏览器会自动生成带 boundary 的
+   * multipart/form-data，手写 application/json 或缺少 boundary 都会失败。
+   */
+  importFile: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return http.post('/jds/import', form, { timeout: 30000 })
+  }
 }

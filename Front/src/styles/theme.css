@@ -1,318 +1,170 @@
 /**
- * ═══════════════════════════════════════════════════════════════════════
- *  【这个文件是什么】
- *  全局设计令牌（Design Tokens）+ Element Plus 主题覆盖。
- *
- *  所有颜色、圆角、阴影都定义成 CSS 变量，
- *  组件里只引用变量，不写死色值 —— 想换主题只改这一个文件。
- * ═══════════════════════════════════════════════════════════════════════
- *
- *  【★ 为什么用 CSS 变量而不是 SCSS 变量？】
- *
- *  1. 运行时可变：改一个变量的值，所有引用它的地方立刻更新，
- *     不需要重新编译。做深色模式时这点尤其重要。
- *  2. 浏览器原生支持，不需要构建工具。
- *  3. Element Plus 自己就是用 CSS 变量做主题的，
- *     我们覆盖它的变量就能改主题，不用写一堆 !important。
- *
- *  【★ 配色来源】
- *  参考 getresumeiq.com 的实际设计令牌：
- *      主色   teal  #29A399  (hsl(175 60% 40%))
- *      渐变   teal → cyan  #29A399 → #22A8C3
- *      背景   #F6F7F9  (hsl(220 20% 97%))
- *      前景   #121721  (hsl(220 30% 10%))
- *      圆角   12px
- *
- *  ★ 为什么用青绿而不是蓝色？
- *    蓝色是"后台管理系统"的默认色（Element / Ant Design 都用蓝）。
- *    青绿更清爽、更接近"产品"而不是"工具"，也更像 ResumeIQ。
+ * 简评 · Career Studio 设计系统
+ * 奶油纸张、森林绿、珊瑚橙。温暖但不失专业感。
  */
 
-/* ═══════════════════════════════════════════════════════════════════════
-   一、设计令牌
-   ═══════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ─────────── 品牌色 ─────────── */
+  /* 品牌 */
+  --brand: #1f4b3e;
+  --brand-deep: #173a30;
+  --brand-soft: #eef2eb;
+  --brand-mist: #e8ece3;
+  --accent: #ee6a4b;
+  --accent-deep: #c94f35;
+  --accent-soft: #fbe4dc;
+  --gold: #f2c15b;
+  --sage: #a9c2b0;
+  --mist-blue: #6ea6c9;
+  --gradient-brand: linear-gradient(135deg, #1f4b3e 0%, #2f6655 100%);
+  --gradient-accent: linear-gradient(135deg, #ee6a4b 0%, #f08a68 100%);
+  --glow-brand: 0 8px 22px rgba(31, 75, 62, 0.18);
 
-  /** 主色：青绿。用于主按钮、链接、高亮、进度条 */
-  --brand: #29a399;
+  /* 中性色 */
+  --bg: #f8f3e9;
+  --surface: #fffcf7;
+  --surface-deep: #fffaf1;
+  --text: #26332f;
+  --text-muted: #706f67;
+  --text-faint: #918d83;
+  --line: #ddd4c5;
+  --line-soft: #ebe3d7;
+  --fill: #f3efe6;
 
-  /** 主色的浅色版，用于 hover 态、浅背景 */
-  --brand-soft: #e8f7f6;
+  /* 语义色 */
+  --success: #237a4b;
+  --info: #356f8f;
+  --warning: #a56814;
+  --danger: #b84132;
 
-  /** 主色的深色版，用于浅背景上的文字（保证对比度） */
-  --brand-deep: #1f7a73;
-
-  /** 品牌渐变：用在主按钮、标题、头像等需要突出的地方 */
-  --gradient-brand: linear-gradient(135deg, #29a399 0%, #22a8c3 100%);
-
-  /** 主色发光：让主按钮"浮起来"，是 ResumeIQ 的标志性效果 */
-  --glow-brand: 0 0 20px rgba(41, 163, 153, 0.3);
-
-  /* ─────────── 中性色 ─────────── */
-
-  /** 页面背景：冷灰蓝，不是纯白 —— 这样白色卡片才有层次 */
-  --bg: #f6f7f9;
-
-  /** 卡片/面板背景 */
-  --surface: #ffffff;
-
-  /** 主文字：深蓝黑，比拼纯黑柔和 */
-  --text: #121721;
-
-  /** 次要文字：说明、元信息 */
-  --text-muted: #676f7e;
-
-  /** 三级文字：占位符、禁用态 */
-  --text-faint: #9aa1ae;
-
-  /** 边框：比一般的 #ddd 更冷、更淡 */
-  --line: #dcdfe5;
-
-  /** 浅色分隔（比 --line 更淡，用于列表内分隔） */
-  --line-soft: #eef0f3;
-
-  /** 浅灰背景块（用于标签、代码块底色） */
-  --fill: #edeff1;
-
-  /* ─────────── 语义色（分数分档用） ─────────── */
-
-  /** 优秀 ≥85 */
-  --success: #16a34a;
-
-  /** 良好 70-84 */
-  --info: #2563eb;
-
-  /** 一般 55-69 */
-  --warning: #d97706;
-
-  /** 偏低 <55 */
-  --danger: #dc2626;
-
-  /* ─────────── 圆角 ─────────── */
-
-  /** 小圆角：标签、小按钮 */
-  --radius-sm: 6px;
-
-  /** 标准圆角：按钮、输入框、卡片 */
+  /* 形状 */
+  --radius-sm: 8px;
   --radius: 10px;
-
-  /** 大圆角：大卡片、弹窗 */
-  --radius-lg: 14px;
-
-  /** 胶囊：头像、徽标 */
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-full: 999px;
 
-  /* ─────────── 阴影（分层，从浅到深） ─────────── */
-
-  --shadow-sm: 0 1px 2px rgba(18, 23, 33, 0.05);
-  --shadow: 0 1px 3px rgba(18, 23, 33, 0.08), 0 1px 2px rgba(18, 23, 33, 0.04);
-  --shadow-md: 0 4px 12px rgba(18, 23, 33, 0.08), 0 2px 4px rgba(18, 23, 33, 0.04);
-  --shadow-lg: 0 12px 28px rgba(18, 23, 33, 0.1), 0 4px 8px rgba(18, 23, 33, 0.04);
-
-  /* ─────────── 字体 ─────────── */
-
-  /**
-   * ★ 为什么把 Plus Jakarta Sans 放第一个？
-   *   它是 ResumeIQ 用的字体，几何感强、现代。
-   *   但它【没有中文字形】，所以中文会自动回退到后面的字体。
-   *
-   * ★ 回退链的设计：
-   *      Plus Jakarta Sans → 英文用
-   *      -apple-system / Segoe UI → 系统 UI 字体（Win/Mac）
-   *      PingFang SC / Microsoft YaHei → 中文
-   *
-   *   这样英文显示 Plus Jakarta 的现代感，中文显示系统字体（清晰可读）。
-   *
-   * ★ 为什么不从 Google Fonts 加载 Plus Jakarta Sans？
-   *   国内访问 Google Fonts 很慢甚至超时，会拖慢首屏。
-   *   如果用户本机装了就会用，没装就回退到系统字体 —— 效果差异不大。
-   *   （真要精确还原，可以把字体文件下载到 public/fonts/ 本地引用）
-   */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
-               'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-               'Microsoft YaHei', sans-serif;
-
-  /** 等宽字体：用于简历正文、代码、数字 */
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas,
-               'Courier New', monospace;
-
-  /**
-   * ★ 数字专用：使用等宽数字（tabular-nums），
-   *   让列表里 "68" 和 "100" 宽度一致，对齐更整齐。
-   */
-  --font-num: 'Plus Jakarta Sans', ui-monospace, monospace;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   二、Element Plus 主题覆盖
-   ═══════════════════════════════════════════════════════════════════════
-
-   ★ 原理：Element Plus 的所有组件颜色都来自 --el-color-primary 这组变量。
-     我们直接改它们，所有组件（按钮、输入框、分页、标签...）自动变青绿。
-
-   ★ 为什么要算 light-3 / light-5 / light-7 ...？
-     Element 用这些变量表示"主色与白色按比例混合"：
-        light-3 = 30% 白 + 70% 主色  （hover 态）
-        light-5 = 50% 白 + 50% 主色
-        light-7 = 70% 白 + 30% 主色
-        light-8 = 80% 白 + 20% 主色  （禁用态）
-        light-9 = 90% 白 + 10% 主色  （最浅背景）
-        dark-2  = 80% 主色 + 20% 黑   （按下态）
-
-     基于 #29A399 计算出的值如下。如果不提供这些，
-     Element 会用默认蓝色的浅色版，看起来会很怪。
-   ═══════════════════════════════════════════════════════════════════════ */
-:root {
-  --el-color-primary: #29a399;
-  --el-color-primary-light-3: #69bfb8;
-  --el-color-primary-light-5: #94d1cc;
-  --el-color-primary-light-7: #bfe3e0;
-  --el-color-primary-light-8: #d4ecea;
-  --el-color-primary-light-9: #eaf5f4;
-  --el-color-primary-dark-2: #21827a;
-
-  /* 语义色也对齐我们的分档色 */
-  --el-color-success: #16a34a;
-  --el-color-warning: #d97706;
-  --el-color-danger: #dc2626;
-  --el-color-info: #676f7e;
-
-  /* 文字色 */
-  --el-text-color-primary: #121721;
-  --el-text-color-regular: #3f4653;
-  --el-text-color-secondary: #676f7e;
-  --el-text-color-placeholder: #9aa1ae;
-
-  /* 边框色 */
-  --el-border-color: #dcdfe5;
-  --el-border-color-light: #eef0f3;
-  --el-border-color-lighter: #f2f4f6;
-  --el-border-color-extra-light: #f7f8fa;
-
-  /* 圆角：Element 默认 4px，太方了，改成 8px */
-  --el-border-radius-base: 8px;
-  --el-border-radius-small: 6px;
-  --el-border-radius-round: 999px;
+  /* 阴影：全部使用暖色，避免冷灰后台感 */
+  --shadow-sm: 0 1px 2px rgba(62, 50, 36, 0.05);
+  --shadow: 0 2px 8px rgba(62, 50, 36, 0.06);
+  --shadow-md: 0 10px 28px rgba(62, 50, 36, 0.08);
+  --shadow-lg: 0 24px 60px rgba(62, 50, 36, 0.13);
 
   /* 字体 */
+  --font-sans: 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB',
+               'Microsoft YaHei', sans-serif;
+  --font-serif: 'STSong', 'Songti SC', 'Noto Serif SC', 'SimSun', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas,
+               'Courier New', monospace;
+  --font-num: 'Segoe UI', ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+/* Element Plus 主题映射 */
+:root {
+  --el-color-primary: #1f4b3e;
+  --el-color-primary-light-3: #58796d;
+  --el-color-primary-light-5: #8fa79e;
+  --el-color-primary-light-7: #c5d2cc;
+  --el-color-primary-light-8: #dce5df;
+  --el-color-primary-light-9: #eef2eb;
+  --el-color-primary-dark-2: #173a30;
+
+  --el-color-success: #237a4b;
+  --el-color-warning: #a56814;
+  --el-color-danger: #b84132;
+  --el-color-info: #706f67;
+
+  --el-text-color-primary: #26332f;
+  --el-text-color-regular: #47524e;
+  --el-text-color-secondary: #706f67;
+  --el-text-color-placeholder: #918d83;
+
+  --el-border-color: #ddd4c5;
+  --el-border-color-light: #ebe3d7;
+  --el-border-color-lighter: #f0e9dd;
+  --el-border-color-extra-light: #f6f1e8;
+
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 999px;
   --el-font-family: var(--font-sans);
 
-  /* 背景 */
-  --el-bg-color: #ffffff;
-  --el-bg-color-page: #f6f7f9;
-  --el-bg-color-overlay: #ffffff;
+  --el-bg-color: #fffcf7;
+  --el-bg-color-page: #f8f3e9;
+  --el-bg-color-overlay: #fffcf7;
+  --el-fill-color-blank: #fffcf7;
+  --el-fill-color-light: #f3efe6;
+  --el-fill-color-lighter: #faf6ee;
 
-  /* 填充色 */
-  --el-fill-color-blank: #ffffff;
-  --el-fill-color-light: #f6f7f9;
-  --el-fill-color-lighter: #fafbfc;
+  --el-box-shadow-light: 0 8px 24px rgba(62, 50, 36, 0.08);
+  --el-box-shadow-lighter: 0 4px 14px rgba(62, 50, 36, 0.06);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   三、基础样式重置
-   ═══════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#app {
-  height: 100%;
+html, body, #app {
+  min-height: 100%;
   margin: 0;
   padding: 0;
 }
+
+html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--font-sans);
   color: var(--text);
   background: var(--bg);
-
-  /**
-   * ★ -webkit-font-smoothing: antialiased
-   *   macOS 上让字体更细腻（不加的话字会显得粗）。
-   *   Windows 上这个属性基本无效，但加了无害。
-   */
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(238, 106, 75, 0.07), transparent 30rem),
+    radial-gradient(circle at 92% 12%, rgba(110, 166, 201, 0.07), transparent 28rem);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+h1 {
+  font-family: var(--font-serif);
+  font-weight: 700;
 }
 
-/**
- * ★ 滚动条美化。
- *   默认的 Windows 滚动条又宽又丑，和极简设计冲突。
- *   改成细窄的圆角条，hover 时才明显。
- */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+a { color: inherit; text-decoration: none; }
+
+button, input, textarea, select { font: inherit; }
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+:focus-visible {
+  outline: 3px solid rgba(238, 106, 75, 0.45);
+  outline-offset: 3px;
 }
 
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #d3d7de;
+  background: #c9bdab;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #b8bdc7;
+  background: #ad9e89;
   background-clip: content-box;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   四、通用工具类
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/**
- * ★ 简历正文的展示样式。
- *   必须保留换行和空格，否则简历的排版全乱了。
- *
- *   ★ 绝不用 v-html 渲染用户内容 —— 那会引入 XSS 风险。
- *     用 white-space: pre-wrap 渲染纯文本就够了。
- */
+/* 通用工具 */
 .pre-wrap {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.75;
 }
 
-/**
- * 品牌渐变文字。用于主标题、大分数。
- *
- * ★ 原理：
- *   1. background 设为渐变
- *   2. background-clip: text —— 让背景只在文字形状内显示
- *   3. color: transparent —— 把文字本身的颜色变透明，
- *      这样露出来的是背景渐变
- *
- *   ★ 三个缺一不可。少了 background-clip 就是一块色块；
- *     少了 color: transparent 文字会盖住渐变。
- */
 .text-gradient {
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--brand);
 }
 
-/**
- * 卡片。比 el-card 更轻 —— 只有细边框，没有阴影。
- *
- * ★ 为什么不直接用 el-card？
- *   el-card 自带 header 区、内边距、阴影，样式比较"重"。
- *   我们想要的是"文档感"的卡片：细边框 + 白底 + 圆角。
- */
 .card {
   background: var(--surface);
   border: 1px solid var(--line-soft);
@@ -320,80 +172,264 @@ a {
   padding: 20px;
 }
 
-/**
- * 空状态文字。
- */
 .empty-text {
   color: var(--text-faint);
   font-size: 14px;
   text-align: center;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   五、Element Plus 组件微调
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/**
- * ★ 主按钮加发光效果 —— 这是 ResumeIQ 的标志性视觉。
- *   只在 hover 时发光，平时保持干净。
- */
+/* Element Plus 微调 */
+.el-button {
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              background-color 0.18s ease, border-color 0.18s ease;
+}
+.el-button:active { transform: translateY(1px); }
 .el-button--primary {
   --el-button-bg-color: var(--brand);
   --el-button-border-color: var(--brand);
   --el-button-hover-bg-color: var(--brand-deep);
   --el-button-hover-border-color: var(--brand-deep);
-  transition: box-shadow 0.2s, background 0.2s;
+  --el-button-active-bg-color: var(--brand-deep);
+  --el-button-active-border-color: var(--brand-deep);
+  box-shadow: 0 5px 14px rgba(31, 75, 62, 0.14);
 }
-
 .el-button--primary:hover {
   box-shadow: var(--glow-brand);
 }
+.el-button.is-text {
+  box-shadow: none;
+}
 
-/**
- * 输入框：圆角加大、边框变淡。
- */
 .el-input__wrapper,
 .el-textarea__inner {
-  border-radius: 8px;
+  border-radius: 10px;
+  background: var(--surface);
   box-shadow: 0 0 0 1px var(--line) inset;
 }
-
 .el-input__wrapper:hover,
 .el-textarea__inner:hover {
-  box-shadow: 0 0 0 1px #c3c8d1 inset;
+  box-shadow: 0 0 0 1px #b9ad9b inset;
+}
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px rgba(31, 75, 62, 0.35) inset !important;
+}
+.el-input--large .el-input__wrapper { min-height: 46px; }
+
+.el-form-item__label {
+  color: var(--text);
+  font-weight: 600;
 }
 
-/**
- * 弹窗：圆角加大 + 更强的阴影。
- */
 .el-dialog {
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
   box-shadow: var(--shadow-lg);
 }
+.el-dialog__header {
+  padding: 24px 26px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.el-dialog__title {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--text);
+}
+.el-dialog__body { padding: 22px 26px; }
+.el-dialog__footer { padding: 12px 26px 24px; }
 
-/**
- * 卡片：去掉默认阴影，用细边框代替。
- */
 .el-card {
   border-radius: var(--radius-lg);
   border-color: var(--line-soft);
+  background: var(--surface);
   box-shadow: none !important;
 }
+.el-card__body { padding: 24px; }
 
-/**
- * 表格：表头背景改透明，更像文档而不是"表格控件"。
- */
+.el-table {
+  --el-table-border-color: var(--line-soft);
+  --el-table-row-hover-bg-color: var(--surface-deep);
+}
 .el-table th.el-table__cell {
   background: transparent;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 12px;
 }
-
-/**
- * 标签：圆角改小一点，更精致。
- */
 .el-tag {
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  border-radius: 999px;
+  font-weight: 600;
+  padding-inline: 9px;
+}
+.el-dropdown-menu {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+}
+.el-pagination {
+  --el-pagination-button-bg-color: var(--surface);
+  --el-pagination-hover-color: var(--brand);
+}
+.el-message {
+  border-radius: 12px;
+  border-color: var(--line-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.el-loading-mask { background-color: rgba(248, 243, 233, 0.78); }
+
+/* ── 职业工作室页面骨架 ── */
+.studio-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 30px;
+}
+
+.studio-page-copy { min-width: 0; }
+
+.studio-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.studio-eyebrow::before {
+  content: '';
+  width: 22px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.studio-page-title {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.studio-page-sub {
+  max-width: 620px;
+  margin: 11px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.studio-page-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.studio-paper {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.studio-paper--ruled {
+  background:
+    linear-gradient(rgba(255, 252, 247, 0.94), rgba(255, 252, 247, 0.94)),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(112, 95, 70, 0.07) 31px 32px);
+}
+
+.studio-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 252, 247, 0.78);
+}
+
+.studio-empty {
+  padding: 72px 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 252, 247, 0.58);
+  text-align: center;
+}
+
+.studio-empty-mark {
+  display: inline-flex;
+  width: 54px;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  box-shadow: 8px 8px 0 rgba(31, 75, 62, 0.08);
+}
+
+.studio-empty h2 {
+  margin: 0 0 7px;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 22px;
+}
+
+.studio-empty p {
+  margin: 0 auto 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+@media (max-width: 760px) {
+  .studio-page-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .studio-page-title { font-size: 36px; }
+  .studio-page-actions { width: 100%; flex-wrap: wrap; }
+  .studio-page-actions > * { flex: 1 1 auto; }
+  .studio-toolbar { padding: 10px; }
+  .studio-empty { padding: 54px 18px; }
+}
+
+@media (max-width: 768px) {
+  .el-button { min-height: 44px; }
+  .el-button--small { min-height: 40px; }
+  .el-dialog {
+    width: calc(100vw - 24px) !important;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

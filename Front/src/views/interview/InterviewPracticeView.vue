@@ -359,7 +359,7 @@ h1 {
 }
 
 .reveal-button:focus-visible {
-  outline: 3px solid rgba(41, 163, 153, 0.28);
+  outline: 3px solid rgba(238, 106, 75, 0.3);
   outline-offset: 2px;
 }
 
@@ -492,5 +492,58 @@ h1 {
   .answer-leave-active {
     transition: none;
   }
+}
+
+/* ═══════════════ 方案 C：职业工作室覆盖层 ═══════════════ */
+h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(36px, 4vw, 48px);
+  letter-spacing: -0.04em;
+}
+
+.eyebrow { letter-spacing: 0.14em; }
+
+.source {
+  border-color: rgba(31, 75, 62, 0.12);
+  background: var(--brand-soft);
+}
+
+.loading-panel,
+.question-card {
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.question-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.question-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.number { font-family: var(--font-mono); }
+.question-header h2 { font-family: var(--font-serif); font-size: 20px; }
+.reveal-button {
+  border-color: rgba(31, 75, 62, 0.22);
+  background: var(--surface-deep);
+}
+.reveal-button:focus-visible { outline-color: rgba(238, 106, 75, 0.36); }
+.reference-answer p { font-family: var(--font-serif); }
+.support-block blockquote { border-left-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+
+@media (max-width: 700px) {
+  h1 { font-size: 36px; }
+  .question-card { border-radius: 16px; }
+  .question-header h2 { font-size: 18px; }
 }
 </style>

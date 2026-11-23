@@ -29,7 +29,7 @@ defineProps({
   <el-card shadow="never">
     <el-empty :description="`${title} 尚未实现`">
       <template #image>
-        <el-icon :size="64" color="#c0c4cc"><Tools /></el-icon>
+        <el-icon :size="64" color="var(--text-faint)"><Tools /></el-icon>
       </template>
 
       <template #description>
@@ -52,15 +52,25 @@ defineProps({
 
 .step {
   font-size: 13px;
-  color: #409eff;
+  color: var(--accent-deep);
   margin: 0 0 8px;
 }
 
 .desc {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
   max-width: 420px;
   line-height: 1.7;
   margin: 0;
 }
+
+
+/* 方案 C 空页面 */
+:deep(.el-card) { border-radius: 22px; background: rgba(255, 252, 247, 0.7); }
+:deep(.el-card__body) { padding: 28px; }
+:deep(.el-empty__image) { color: var(--text-faint) !important; }
+.title { font-family: var(--font-serif); font-size: 24px; color: var(--text); }
+.step { color: var(--accent-deep); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; }
+.desc { color: var(--text-muted); }
+
 </style>

@@ -477,6 +477,7 @@ public class AnalysisService {
                 versionNo,
                 r.getJdId(),
                 jd == null ? null : jd.getTitle(),
+                jd == null ? null : jd.getCompany(),
                 dims,
                 hits, partials, missing,
                 strengths,

@@ -130,6 +130,13 @@ const gradeColor = computed(() => {
   }[g] || 'var(--text-faint)'
 })
 
+const gradeOnDarkColor = computed(() => ({
+  EXCELLENT: '#b8dfc8',
+  GOOD: '#b9d9e8',
+  FAIR: '#f2c15b',
+  WEAK: '#ffb0a2'
+}[report.value?.grade] || '#f8f3e9'))
+
 const gradeLabel = computed(() => ({
   EXCELLENT: '优秀',
   GOOD: '良好',
@@ -169,131 +176,189 @@ const sectionLabel = {
   SUMMARY: '自我评价', SKILLS: '技能', EXPERIENCE: '工作经历',
   PROJECT: '项目', EDUCATION: '教育', KEYWORDS: '关键词', OTHER: '其他'
 }
+
+/** 顶部只展示真实建议里的前三条，不额外编造任务。 */
+const prioritySuggestions = computed(() => (report.value?.suggestions || []).slice(0, 3))
 </script>
 
 <template>
   <DefaultLayout>
-    <!--
-      ★ 返回按钮：优先回到上一页（可能是刚提交分析的页面），
-        没有历史时兜底到 /analysis/new。
-    -->
-    <BackButton to="/analysis/new" label="返回" />
+    <BackButton to="/analysis/new" label="返回分析" />
 
-    <el-skeleton v-if="loading" :rows="10" animated />
+    <div v-if="loading" class="loading-panel">
+      <el-skeleton :rows="10" animated />
+    </div>
 
     <template v-else-if="report">
-
-      <!-- ═══════════════ 1. 大分数区 ═══════════════ -->
-      <section class="score-hero">
-        <div class="score-ring">
-          <!--
-            ★ 分数用 64px 超大字号 + 语义色。
-              这是整页的视觉锚点 —— 用户 3 秒内就知道"行不行"。
-          -->
-          <span class="score-num" :style="{ color: gradeColor }">
-            {{ report.overallScore?.toFixed(0) }}
-          </span>
-          <span class="score-scale">/ 100</span>
+      <header class="report-head">
+        <div class="report-head-copy">
+          <p class="eyebrow"><span /> MATCH REVIEW · REPORT</p>
+          <h1>把优势，<em>讲到点子上。</em></h1>
+          <p class="report-sub">
+            这份报告把岗位要求、简历证据和下一步动作放在一起，方便你直接开始修改。
+          </p>
         </div>
 
-        <div class="score-grade" :style="{ color: gradeColor }">
-          {{ gradeLabel }}
-        </div>
-        <p class="score-hint">{{ gradeHint }}</p>
+        <aside class="report-target">
+          <span class="target-label">本次对照岗位</span>
+          <strong>{{ report.jdTitle }}</strong>
+          <p>{{ report.resumeTitle }} · v{{ report.resumeVersionNo }}</p>
+          <div class="target-meta">
+            <span>{{ report.createdAt }}</span>
+            <span v-if="report.durationMs">耗时 {{ report.durationMs }}ms</span>
+          </div>
+          <el-tag v-if="report.degraded" size="small" type="warning" effect="plain">
+            部分降级
+          </el-tag>
+        </aside>
+      </header>
 
-        <div class="score-context">
-          {{ report.resumeTitle }} · v{{ report.resumeVersionNo }}
-          <span class="ctx-sep">对比</span>
-          {{ report.jdTitle }}
-        </div>
+      <section class="overview" aria-label="报告概览">
+        <article class="score-card">
+          <div class="score-card-head">
+            <span>OVERALL MATCH</span>
+            <span class="grade-chip">{{ gradeLabel }}</span>
+          </div>
+
+          <div class="score-value" :style="{ color: gradeOnDarkColor }">
+            <strong>{{ report.overallScore?.toFixed(0) }}</strong>
+            <span>/ 100</span>
+          </div>
+          <p class="score-hint">{{ gradeHint }}</p>
+
+          <div class="score-foot">
+            <span class="score-line" aria-hidden="true" />
+            <small>算法版本 {{ report.scoringVersion }}</small>
+          </div>
+        </article>
+
+        <article class="map-card">
+          <header class="section-title-row">
+            <div>
+              <span class="section-label">MATCH MAP</span>
+              <h2>岗位匹配地图</h2>
+            </div>
+            <span class="count-note">六维评分</span>
+          </header>
+
+          <div class="map-list">
+            <div v-for="d in report.dimensions" :key="d.key" class="map-row">
+              <div class="map-row-top">
+                <span>{{ d.name }}</span>
+                <strong :style="{ color: d.applicable ? barColor(d.score) : 'var(--text-faint)' }">
+                  {{ d.applicable ? d.score?.toFixed(1) : '—' }}
+                </strong>
+              </div>
+              <div
+                v-if="d.applicable"
+                class="map-track"
+                role="progressbar"
+                :aria-label="d.name"
+                :aria-valuenow="d.score"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span :style="{ width: d.score + '%', background: barColor(d.score) }" />
+              </div>
+              <div v-else class="not-applicable">本次岗位未要求，不参与计分</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="priority-card">
+          <header class="section-title-row">
+            <div>
+              <span class="section-label">NEXT MOVES</span>
+              <h2>本周先做三件事</h2>
+            </div>
+            <span v-if="prioritySuggestions.length" class="count-badge">{{ report.suggestions.length }} 条建议</span>
+          </header>
+
+          <ol v-if="prioritySuggestions.length" class="priority-list">
+            <li v-for="(item, index) in prioritySuggestions" :key="index">
+              <span class="priority-no">{{ String(index + 1).padStart(2, '0') }}</span>
+              <div>
+                <span class="priority-meta">
+                  {{ sectionLabel[item.section] || item.section }} ·
+                  {{ severityLabel[item.severity] || item.severity }}
+                </span>
+                <p>{{ item.issue }}</p>
+              </div>
+            </li>
+          </ol>
+          <p v-else class="empty-state">这份报告没有需要优先修正的问题。</p>
+
+          <p v-if="report.suggestions?.length > 3" class="priority-more">
+            下方还有 {{ report.suggestions.length - 3 }} 条补充建议。
+          </p>
+        </article>
       </section>
 
-      <!-- ═══════════════ 2. 摘要卡片（渐变背景）═══════════════ -->
       <section class="summary-card">
-        <div class="summary-icon">✦</div>
-        <div class="summary-body">
-          <p class="summary-text">{{ report.summary }}</p>
+        <span class="summary-mark" aria-hidden="true">简</span>
+        <div>
+          <span class="section-label">REVIEW NOTE</span>
+          <h2>评审摘要</h2>
+          <p>{{ report.summary }}</p>
           <div class="summary-meta">
-            <span v-if="report.durationMs">耗时 {{ report.durationMs }}ms</span>
-            <span class="dot">·</span>
-            <span>{{ report.createdAt }}</span>
-            <span class="dot">·</span>
-            <span>算法 {{ report.scoringVersion }}</span>
-            <el-tag v-if="report.degraded" size="small" type="warning" effect="plain">
-              部分降级
-            </el-tag>
+            <span>{{ report.resumeTitle }} · v{{ report.resumeVersionNo }}</span>
+            <span class="meta-dot">·</span>
+            <span>{{ report.jdTitle }}</span>
           </div>
         </div>
       </section>
 
-      <!-- ═══════════════ 3. 四宫格 ═══════════════ -->
-      <div class="grid">
-        <!-- ─────────── 优势 ─────────── -->
-        <section class="card">
-          <header class="card-head">
-            <span class="card-icon ok">✓</span>
-            <h2 class="card-title">优势</h2>
-            <span v-if="report.strengths?.length" class="pill pill-ok">
-              {{ report.strengths.length }}
-            </span>
+      <div class="evidence-grid">
+        <section class="paper-card strength-card">
+          <header class="paper-head">
+            <div>
+              <span class="section-label">WHAT ALREADY WORKS</span>
+              <h2>简历里已有的好证据</h2>
+            </div>
+            <span v-if="report.strengths?.length" class="paper-count">{{ report.strengths.length }}</span>
           </header>
 
-          <ul v-if="report.strengths?.length" class="list">
-            <li v-for="(s, i) in report.strengths" :key="i" class="list-item">
-              <span class="bullet bullet-ok">•</span>
-              <span>{{ s }}</span>
+          <ul v-if="report.strengths?.length" class="strength-list">
+            <li v-for="(item, index) in report.strengths" :key="index">
+              <span>{{ String(index + 1).padStart(2, '0') }}</span>
+              <p>{{ item }}</p>
             </li>
           </ul>
-
-          <p v-else class="empty">
-            暂未发现明显优势，建议先补齐技能、经历、项目等基础信息
+          <p v-else class="empty-state">
+            暂未发现明显优势。建议先补齐技能、经历、项目等基础信息。
           </p>
-        </section>
 
-        <!-- ─────────── 已匹配技能 ─────────── -->
-        <section class="card">
-          <header class="card-head">
-            <span class="card-icon ok">◎</span>
-            <h2 class="card-title">已匹配技能</h2>
-            <span v-if="report.hits?.length" class="pill pill-ok">
-              {{ report.hits.length }}
-            </span>
-          </header>
-
-          <div v-if="report.hits?.length" class="tags">
-            <span
-              v-for="k in report.hits"
-              :key="k.name"
-              class="tag tag-ok"
-              :title="k.evidence || ''"
-            >
-              {{ k.name }}
-            </span>
-          </div>
-          <p v-else class="empty">简历中没有命中 JD 要求的技能</p>
-
-          <!-- 部分命中单独列，标注"写法可能不标准" -->
-          <template v-if="report.partials?.length">
-            <p class="sub-label">部分命中（建议改成标准写法）</p>
-            <div class="tags">
-              <span v-for="k in report.partials" :key="k.name" class="tag tag-warn">
+          <div class="skill-block">
+            <div class="skill-heading">
+              <h3>已匹配技能</h3>
+              <span v-if="report.hits?.length">{{ report.hits.length }} 项</span>
+            </div>
+            <div v-if="report.hits?.length" class="tags">
+              <span v-for="k in report.hits" :key="k.name" class="tag tag-ok" :title="k.evidence || ''">
                 {{ k.name }}
               </span>
             </div>
-          </template>
+            <p v-else class="muted-copy">简历中没有命中 JD 要求的技能。</p>
+
+            <template v-if="report.partials?.length">
+              <p class="sub-label">部分命中，建议改成岗位里的标准写法</p>
+              <div class="tags">
+                <span v-for="k in report.partials" :key="k.name" class="tag tag-warn">{{ k.name }}</span>
+              </div>
+            </template>
+          </div>
         </section>
 
-        <!-- ─────────── 需要补充 ─────────── -->
-        <section class="card">
-          <header class="card-head">
-            <span class="card-icon bad">!</span>
-            <h2 class="card-title">需要补充的技能</h2>
-            <span v-if="report.missing?.length" class="pill pill-bad">
-              {{ report.missing.length }}
-            </span>
+        <section class="paper-card gap-card">
+          <header class="paper-head">
+            <div>
+              <span class="section-label">WHAT TO ADD NEXT</span>
+              <h2>还需要补上的证据</h2>
+            </div>
+            <span v-if="report.missing?.length" class="paper-count accent">{{ report.missing.length }}</span>
           </header>
 
-          <div v-if="report.missing?.length" class="tags">
+          <div v-if="report.missing?.length" class="tags tags-large">
             <span
               v-for="k in report.missing"
               :key="k.name"
@@ -304,114 +369,106 @@ const sectionLabel = {
               <em v-if="k.importance === 'HIGH'" class="req">必须</em>
             </span>
           </div>
-          <p v-else class="empty">JD 要求的技能已全部命中</p>
+          <p v-else class="empty-state">JD 要求的技能已经全部命中。</p>
 
-          <p v-if="report.missing?.some(k => k.importance === 'HIGH')" class="tip">
-            标「必须」的是 JD 明确的硬性要求，建议优先补齐
+          <p v-if="report.missing?.some(k => k.importance === 'HIGH')" class="inline-tip">
+            标「必须」的是 JD 明确的硬性要求，建议优先补齐。
           </p>
-        </section>
 
-        <!-- ─────────── 软技能提示 ─────────── -->
-        <section v-if="report.softSkills?.length" class="card">
-          <header class="card-head">
-            <span class="card-icon">◇</span>
-            <h2 class="card-title">软技能（不计分）</h2>
-          </header>
-
-          <div class="tags">
-            <span v-for="s in report.softSkills" :key="s" class="tag tag-muted">
-              {{ s }}
-            </span>
+          <div v-if="report.softSkills?.length" class="soft-block">
+            <div class="skill-heading">
+              <h3>软技能观察</h3>
+              <span>不计分</span>
+            </div>
+            <div class="tags">
+              <span v-for="skill in report.softSkills" :key="skill" class="tag tag-muted">{{ skill }}</span>
+            </div>
+            <p class="soft-note">
+              软技能很难只靠简历文字可靠判断。建议在项目描述里写清你的角色、协作范围和实际影响。
+            </p>
           </div>
-
-          <!--
-            ★ 这段说明很重要：告诉用户"为什么软技能不参与评分"。
-              否则用户会问"JD 要求团队协作，为什么不算分？"
-          -->
-          <p class="tip">
-            软技能无法从简历文本可靠判断（"带过 5 人团队"能体现协作，
-            但"善于沟通"只是自述），所以不参与评分。
-            建议在项目描述里写明你的角色和协作范围。
-          </p>
         </section>
       </div>
 
-      <!-- ═══════════════ 4. 六维度 ═══════════════ -->
-      <section class="card block">
-        <header class="card-head">
-          <span class="card-icon">▤</span>
-          <h2 class="card-title">评分构成</h2>
+      <section class="dimension-section">
+        <header class="section-title-row dimension-title">
+          <div>
+            <span class="section-label">SCORING DETAIL</span>
+            <h2>评分构成</h2>
+          </div>
+          <p>总分由各维度得分与权重加权得出；标注不适用的维度不参与计算。</p>
         </header>
-        <p class="card-sub">
-          总分 = 各维度得分 × 权重 之和。「不适用」的维度（如 JD 没要求学历）不参与计算，权重会分给其他维度。
-        </p>
 
-        <div class="dims">
-          <div v-for="d in report.dimensions" :key="d.key" class="dim">
-            <div class="dim-top">
-              <span class="dim-name">{{ d.name }}</span>
-              <span class="dim-score" :style="{ color: d.applicable ? barColor(d.score) : 'var(--text-faint)' }">
+        <div class="dimension-grid">
+          <article v-for="d in report.dimensions" :key="d.key" class="dimension-item">
+            <div class="dimension-top">
+              <h3>{{ d.name }}</h3>
+              <strong :style="{ color: d.applicable ? barColor(d.score) : 'var(--text-faint)' }">
                 {{ d.applicable ? d.score?.toFixed(1) : '不适用' }}
-              </span>
+              </strong>
             </div>
-
-            <div v-if="d.applicable" class="dim-bar">
-              <div class="dim-fill"
-                   :style="{ width: d.score + '%', background: barColor(d.score) }" />
+            <div v-if="d.applicable" class="dimension-track" aria-hidden="true">
+              <span :style="{ width: d.score + '%', background: barColor(d.score) }" />
             </div>
-
-            <div class="dim-meta">
-              <span v-if="d.applicable" class="dim-weight">{{ (d.weight * 100).toFixed(0) }}%</span>
-              <span class="dim-detail">{{ d.detail }}</span>
+            <div class="dimension-meta">
+              <span v-if="d.applicable">权重 {{ (d.weight * 100).toFixed(0) }}%</span>
+              <span v-else>本次不计分</span>
             </div>
-          </div>
+            <p>{{ d.detail }}</p>
+          </article>
         </div>
       </section>
 
-      <!-- ═══════════════ 5. 改进建议 ═══════════════ -->
-      <section v-if="report.suggestions?.length" class="card block">
-        <header class="card-head">
-          <span class="card-icon">✎</span>
-          <h2 class="card-title">改进建议</h2>
-          <span class="pill">{{ report.suggestions.length }}</span>
+      <section v-if="report.suggestions?.length" class="suggestion-section">
+        <header class="section-title-row suggestion-title">
+          <div>
+            <span class="section-label">EDITOR'S NOTES</span>
+            <h2>逐条改进建议</h2>
+          </div>
+          <span class="count-note">按优先级排序</span>
         </header>
-        <p class="card-sub">按优先级排序，每条都给出了简历原文作为证据</p>
 
-        <div class="suggestions">
-          <div v-for="(s, i) in report.suggestions" :key="i" class="sug">
-            <div class="sug-head">
-              <el-tag size="small" :type="severityType(s.severity)" effect="plain">
-                {{ severityLabel[s.severity] || s.severity }}
-              </el-tag>
-              <span class="sug-section">{{ sectionLabel[s.section] || s.section }}</span>
-              <span class="sug-issue">{{ s.issue }}</span>
+        <div class="suggestion-list">
+          <article v-for="(item, index) in report.suggestions" :key="index" class="suggestion-item">
+            <div class="suggestion-index">{{ String(index + 1).padStart(2, '0') }}</div>
+            <div class="suggestion-body">
+              <div class="suggestion-head">
+                <el-tag size="small" :type="severityType(item.severity)" effect="plain">
+                  {{ severityLabel[item.severity] || item.severity }}
+                </el-tag>
+                <span class="suggestion-section-name">{{ sectionLabel[item.section] || item.section }}</span>
+                <strong>{{ item.issue }}</strong>
+              </div>
+
+              <div v-if="item.evidence" class="evidence-row">
+                <span>简历原文</span>
+                <p>{{ item.evidence }}</p>
+              </div>
+
+              <div class="action-row">
+                <span>怎么改</span>
+                <p>{{ item.suggestion }}</p>
+              </div>
             </div>
-
-            <div v-if="s.evidence" class="sug-evidence">
-              <span class="ev-label">原文</span>
-              <span class="ev-text">{{ s.evidence }}</span>
-            </div>
-
-            <p class="sug-action">{{ s.suggestion }}</p>
-          </div>
+          </article>
         </div>
       </section>
 
-      <!-- ═══════════════ 6. 底部操作 ═══════════════ -->
-      <div class="footer-actions">
-        <el-button
-          type="primary"
-          :loading="exporting"
-          @click="exportPdf"
-        >
-          下载 PDF 报告
-        </el-button>
-        <el-button @click="openPublish">发布到社区</el-button>
-        <el-button @click="router.push('/analysis/new')">再分析一次</el-button>
-        <el-button @click="router.push(`/resumes/${report.resumeId}`)">回到简历</el-button>
-      </div>
+      <section class="action-bar" aria-label="报告操作">
+        <div class="action-copy">
+          <span class="section-label">KEEP GOING</span>
+          <strong>修改完成后，再回来看看新的匹配结果。</strong>
+        </div>
+        <div class="action-buttons">
+          <el-button type="primary" :loading="exporting" @click="exportPdf">
+            下载 PDF 报告
+          </el-button>
+          <el-button @click="openPublish">发布到社区</el-button>
+          <el-button @click="router.push('/analysis/new')">再分析一次</el-button>
+          <el-button @click="router.push('/resumes/' + report.resumeId)">回到简历</el-button>
+        </div>
+      </section>
 
-      <!-- ═══════════════ 发布弹窗 ═══════════════ -->
       <PublishDialog
         v-model:visible="publishVisible"
         :report="report"
@@ -421,471 +478,154 @@ const sectionLabel = {
     </template>
   </DefaultLayout>
 </template>
-
 <style scoped>
-/* ═══════════════════════════════════════════════════════════════
-   1. 大分数区
-   ═══════════════════════════════════════════════════════════════ */
-
-.score-hero {
-  text-align: center;
-  padding: 16px 0 28px;
+.loading-panel { padding: 28px; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--surface); }
+.report-head { display: grid; grid-template-columns: minmax(0, 1fr) 330px; align-items: end; gap: clamp(34px, 7vw, 92px); padding: 18px 0 40px; }
+.eyebrow, .section-label { color: var(--brand); font-size: 9px; font-weight: 700; letter-spacing: 0.18em; }
+.eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 17px; }
+.eyebrow span { width: 22px; height: 1px; background: var(--accent); }
+.report-head h1 { margin: 0; color: var(--text); font-family: var(--font-serif); font-size: clamp(40px, 5vw, 62px); line-height: 1.1; letter-spacing: -0.055em; }
+.report-head h1 em { color: var(--brand); font-style: normal; }
+.report-sub { max-width: 640px; margin: 18px 0 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.8; }
+.report-target { padding: 22px 24px; border-left: 3px solid var(--accent); border-radius: 0 16px 16px 0; background: var(--surface); box-shadow: var(--shadow-sm); }
+.target-label { color: var(--text-faint); font-size: 9px; font-weight: 700; letter-spacing: 0.13em; }
+.report-target > strong { display: block; margin: 9px 0 5px; color: var(--text); font-family: var(--font-serif); font-size: 21px; line-height: 1.4; }
+.report-target > p { margin: 0; color: var(--text-muted); font-size: 11px; }
+.target-meta { display: flex; flex-wrap: wrap; gap: 6px 13px; margin-top: 14px; color: var(--text-faint); font-size: 9.5px; }
+.report-target :deep(.el-tag) { margin-top: 12px; }
+.overview { display: grid; grid-template-columns: 0.83fr 1.22fr 1fr; gap: 16px; margin-bottom: 16px; }
+.score-card, .map-card, .priority-card, .paper-card, .dimension-section, .suggestion-section, .summary-card { border-radius: var(--radius-lg); }
+.score-card { min-height: 330px; padding: 25px; display: flex; flex-direction: column; background: radial-gradient(circle at 100% 0%, rgba(242, 193, 91, 0.18), transparent 12rem), var(--brand); color: #fdf8ed; box-shadow: 0 18px 36px rgba(31, 75, 62, 0.16); }
+.score-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(253, 248, 237, 0.55); font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.14em; }
+.grade-chip { padding: 5px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.11); color: #fdf8ed; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0; }
+.score-value { display: flex; align-items: baseline; gap: 7px; margin-top: 42px; }
+.score-value strong { font-family: var(--font-serif); font-size: 84px; line-height: 0.86; letter-spacing: -0.07em; font-variant-numeric: tabular-nums; }
+.score-value span { color: rgba(253, 248, 237, 0.48); font-size: 12px; }
+.score-hint { margin: 20px 0 0; color: rgba(253, 248, 237, 0.8); font-size: 13px; }
+.score-foot { margin-top: auto; padding-top: 22px; }
+.score-line { display: block; width: 100%; height: 1px; margin-bottom: 12px; background: rgba(255, 255, 255, 0.16); }
+.score-foot small { color: rgba(253, 248, 237, 0.42); font-size: 9px; }
+.map-card, .priority-card { min-height: 330px; padding: 24px; border: 1px solid var(--line-soft); background: var(--surface); }
+.section-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.section-title-row h2 { margin: 5px 0 0; color: var(--text); font-family: var(--font-serif); font-size: 23px; letter-spacing: -0.03em; }
+.section-label { display: block; color: var(--accent-deep); }
+.count-note, .count-badge { color: var(--text-faint); font-size: 9.5px; white-space: nowrap; }
+.count-badge { padding: 5px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); font-weight: 700; }
+.map-list { display: flex; flex-direction: column; gap: 13px; margin-top: 22px; }
+.map-row-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; color: var(--text-muted); font-size: 11px; }
+.map-row-top strong { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.map-track, .dimension-track { height: 5px; overflow: hidden; border-radius: 999px; background: var(--fill); }
+.map-track span, .dimension-track span { display: block; height: 100%; border-radius: inherit; }
+.not-applicable { color: var(--text-faint); font-size: 9px; }
+.priority-list { display: flex; flex-direction: column; gap: 0; padding: 0; margin: 18px 0 0; list-style: none; }
+.priority-list li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--line-soft); }
+.priority-list li:last-child { border-bottom: 0; }
+.priority-no { color: var(--accent); font-family: var(--font-mono); font-size: 9px; font-weight: 700; }
+.priority-meta { color: var(--text-faint); font-size: 9px; }
+.priority-list p { margin: 4px 0 0; color: var(--text); font-size: 11.5px; font-weight: 600; line-height: 1.55; }
+.priority-more { margin: 12px 0 0; color: var(--text-faint); font-size: 9.5px; }
+.summary-card { display: flex; gap: 18px; padding: 24px 26px; border: 1px solid rgba(31, 75, 62, 0.11); background: linear-gradient(100deg, var(--brand-soft), var(--surface) 78%); margin-bottom: 16px; }
+.summary-mark { display: flex; width: 42px; height: 42px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 50%; background: var(--brand); color: #fff; font-family: var(--font-serif); font-size: 18px; }
+.summary-card h2 { margin: 5px 0 8px; font-family: var(--font-serif); font-size: 21px; }
+.summary-card p { margin: 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.8; }
+.summary-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; color: var(--text-faint); font-size: 9.5px; }
+.meta-dot { color: var(--line); }
+.evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.paper-card { padding: 26px; border: 1px solid var(--line); background: linear-gradient(rgba(255, 252, 247, 0.96), rgba(255, 252, 247, 0.96)), repeating-linear-gradient(0deg, transparent 0 31px, rgba(112, 95, 70, 0.07) 31px 32px); }
+.paper-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line-soft); }
+.paper-head h2 { margin: 5px 0 0; font-family: var(--font-serif); font-size: 23px; letter-spacing: -0.03em; }
+.paper-count { display: flex; width: 31px; height: 31px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 50%; background: var(--brand-soft); color: var(--brand); font-size: 10px; font-weight: 700; }
+.paper-count.accent { background: var(--accent-soft); color: var(--accent-deep); }
+.strength-list { padding: 0; margin: 10px 0 22px; list-style: none; }
+.strength-list li { display: grid; grid-template-columns: 30px 1fr; gap: 9px; padding: 10px 0; border-bottom: 1px solid rgba(235, 227, 215, 0.75); }
+.strength-list span { color: var(--accent-deep); font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; }
+.strength-list p { margin: 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.7; }
+.skill-block, .soft-block { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.skill-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.skill-heading h3 { margin: 0; color: var(--text); font-size: 12px; }
+.skill-heading span { color: var(--text-faint); font-size: 9px; }
+.tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.tags-large { margin-top: 20px; }
+.tag { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--fill); color: var(--text-muted); font-size: 10.5px; font-weight: 600; }
+.tag-ok { background: rgba(35, 122, 75, 0.1); color: #1d6840; }
+.tag-warn { background: rgba(165, 104, 20, 0.11); color: #83520f; }
+.tag-bad { background: var(--accent-soft); color: var(--accent-deep); }
+.tag-muted { background: var(--fill); color: var(--text-muted); }
+.req { padding: 1px 4px; border-radius: 3px; background: rgba(184, 65, 50, 0.12); font-size: 8px; font-style: normal; }
+.sub-label, .soft-note { margin: 14px 0 7px; color: var(--text-faint); font-size: 9.5px; line-height: 1.65; }
+.soft-note { margin: 10px 0 0; }
+.muted-copy, .empty-state { margin: 16px 0 0; color: var(--text-faint); font-size: 11px; line-height: 1.7; }
+.inline-tip { margin: 14px 0 0; padding: 10px 12px; border-radius: 9px; background: var(--accent-soft); color: var(--accent-deep); font-size: 10px; line-height: 1.65; }
+.dimension-section, .suggestion-section { margin-bottom: 16px; padding: 28px; border: 1px solid var(--line-soft); background: var(--surface); }
+.dimension-title, .suggestion-title { align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid var(--line-soft); }
+.dimension-title > p { max-width: 430px; margin: 0; color: var(--text-faint); font-size: 10px; line-height: 1.65; text-align: right; }
+.dimension-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.dimension-item { min-height: 150px; padding: 20px 22px; border-bottom: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); }
+.dimension-item:nth-child(3n) { border-right: 0; }
+.dimension-item:nth-last-child(-n+3) { border-bottom: 0; }
+.dimension-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.dimension-top h3 { margin: 0; color: var(--text); font-size: 12px; }
+.dimension-top strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.dimension-meta { margin-top: 6px; color: var(--text-faint); font-size: 8.5px; }
+.dimension-item p { margin: 9px 0 0; color: var(--text-muted); font-size: 10px; line-height: 1.65; }
+.suggestion-list { display: flex; flex-direction: column; }
+.suggestion-item { display: grid; grid-template-columns: 42px 1fr; gap: 18px; padding: 22px 0; border-bottom: 1px solid var(--line-soft); }
+.suggestion-item:last-child { border-bottom: 0; padding-bottom: 2px; }
+.suggestion-index { padding-top: 3px; color: var(--accent); font-family: var(--font-mono); font-size: 9px; font-weight: 700; }
+.suggestion-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.suggestion-section-name { color: var(--text-faint); font-size: 9.5px; }
+.suggestion-head strong { flex: 1; min-width: 220px; color: var(--text); font-size: 12.5px; line-height: 1.55; }
+.evidence-row, .action-row { display: grid; grid-template-columns: 64px 1fr; gap: 10px; margin-top: 11px; padding: 10px 12px; border-radius: 9px; }
+.evidence-row { border: 1px solid var(--line-soft); background: var(--surface-deep); }
+.action-row { background: var(--brand-soft); }
+.evidence-row > span, .action-row > span { color: var(--text-faint); font-size: 9px; font-weight: 700; }
+.action-row > span { color: var(--brand); }
+.evidence-row p, .action-row p { margin: 0; color: var(--text-muted); font-size: 10.5px; line-height: 1.7; }
+.action-bar { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 24px; padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.action-copy { display: flex; flex-direction: column; gap: 5px; }
+.action-copy strong { color: var(--text); font-family: var(--font-serif); font-size: 18px; }
+.action-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+.action-buttons :deep(.el-button) { margin-left: 0; }
+@media (max-width: 1040px) {
+  .overview { grid-template-columns: 1fr 1fr; }
+  .priority-card { grid-column: 1 / -1; min-height: 0; }
+  .priority-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .priority-list li { border-bottom: 0; border-right: 1px solid var(--line-soft); padding-right: 14px; }
+  .priority-list li:last-child { border-right: 0; }
+  .dimension-grid { grid-template-columns: 1fr 1fr; }
+  .dimension-item:nth-child(3n) { border-right: 1px solid var(--line-soft); }
+  .dimension-item:nth-child(2n) { border-right: 0; }
+  .dimension-item:nth-last-child(-n+3) { border-bottom: 1px solid var(--line-soft); }
+  .dimension-item:nth-last-child(-n+2) { border-bottom: 0; }
 }
-
-.score-ring {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 6px;
+@media (max-width: 880px) {
+  .report-head { grid-template-columns: 1fr; gap: 26px; }
+  .report-target { max-width: 520px; }
+  .overview { grid-template-columns: 1fr; }
+  .priority-card { grid-column: auto; }
+  .priority-list { display: flex; }
+  .priority-list li { border-right: 0; border-bottom: 1px solid var(--line-soft); padding-right: 0; }
+  .priority-list li:last-child { border-bottom: 0; }
+  .evidence-grid { grid-template-columns: 1fr; }
+  .dimension-grid { grid-template-columns: 1fr; }
+  .dimension-item, .dimension-item:nth-child(2n), .dimension-item:nth-child(3n) { border-right: 0; border-bottom: 1px solid var(--line-soft); }
+  .dimension-item:last-child { border-bottom: 0; }
+  .action-bar { align-items: stretch; flex-direction: column; }
+  .action-buttons { justify-content: flex-start; }
 }
-
-/*
- * ★ 64px + 极紧字距（-0.04em）—— 大数字的视觉冲击力。
- *   等宽数字保证不同分数对齐。
- */
-.score-num {
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.score-scale {
-  font-size: 15px;
-  color: var(--text-faint);
-  font-weight: 500;
-}
-
-.score-grade {
-  font-size: 15px;
-  font-weight: 700;
-  margin-top: 10px;
-  letter-spacing: 0.06em;
-}
-
-.score-hint {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 6px 0 0;
-}
-
-.score-context {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin-top: 14px;
-}
-
-.ctx-sep {
-  margin: 0 8px;
-  color: var(--line);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   2. 摘要卡片 —— ★ 渐变背景（照 ResumeIQ 的 from-primary/5 to-accent/10）
-   ═══════════════════════════════════════════════════════════════ */
-
-.summary-card {
-  display: flex;
-  gap: 12px;
-
-  /*
-   * ★ 浅青 → 白 → 浅青的渐变，加上品牌色淡边框。
-   *   这让摘要卡片和下面普通卡片在视觉上区分开，像"高亮区"。
-   */
-  background: linear-gradient(135deg,
-      rgba(41, 163, 153, 0.06) 0%,
-      #ffffff 50%,
-      rgba(41, 163, 153, 0.08) 100%);
-  border: 1px solid rgba(41, 163, 153, 0.2);
-  border-radius: var(--radius-lg);
-
-  padding: 16px 18px;
-  margin-bottom: 16px;
-}
-
-.summary-icon {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(41, 163, 153, 0.14);
-  color: var(--brand-deep);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 28px;
-  text-align: center;
-}
-
-.summary-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.summary-text {
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--text);
-  margin: 0 0 8px;
-}
-
-.summary-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-  flex-wrap: wrap;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   3. 四宫格
-   ═══════════════════════════════════════════════════════════════ */
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
-}
-
-/* 整宽卡片（评分构成、改进建议） */
-.block {
-  margin-bottom: 16px;
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 12px;
-}
-
-/*
- * ★ 圆形图标底（照 ResumeIQ 的 w-8 h-8 rounded-full bg-primary/10）
- *   用不同色调区分卡片性质：绿=好、红=问题、灰=中性。
- */
-.card-icon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-
-  background: var(--fill);
-  color: var(--text-muted);
-}
-
-.card-icon.ok {
-  background: rgba(22, 163, 74, 0.1);
-  color: var(--success);
-}
-
-.card-icon.bad {
-  background: rgba(220, 38, 38, 0.1);
-  color: var(--danger);
-}
-
-.card-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-}
-
-.card-sub {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin: -4px 0 16px;
-  line-height: 1.6;
-}
-
-/* 右上角数量徽标 */
-.pill {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--fill);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.pill-ok {
-  background: rgba(22, 163, 74, 0.1);
-  color: var(--success);
-}
-
-.pill-bad {
-  background: rgba(220, 38, 38, 0.1);
-  color: var(--danger);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   列表项（优势）
-   ═══════════════════════════════════════════════════════════════ */
-
-.list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.list-item {
-  display: flex;
-  gap: 8px;
-  font-size: 12.5px;
-  line-height: 1.7;
-  color: var(--text-muted);
-  padding: 3px 0;
-}
-
-.bullet {
-  flex-shrink: 0;
-  color: var(--text-faint);
-}
-
-.bullet-ok {
-  color: var(--success);
-  font-weight: 700;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   标签组（技能）
-   ═══════════════════════════════════════════════════════════════ */
-
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
-
-  background: var(--fill);
-  color: var(--text-muted);
-}
-
-.tag-ok {
-  background: rgba(22, 163, 74, 0.09);
-  color: #15803d;
-}
-
-.tag-warn {
-  background: rgba(217, 119, 6, 0.09);
-  color: #b45309;
-}
-
-.tag-bad {
-  background: rgba(220, 38, 38, 0.08);
-  color: #b91c1c;
-}
-
-.tag-muted {
-  background: var(--fill);
-  color: var(--text-muted);
-}
-
-/* 标签里的"必须"小标 */
-.req {
-  font-size: 9px;
-  font-style: normal;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: rgba(220, 38, 38, 0.15);
-  color: #b91c1c;
-}
-
-.sub-label {
-  font-size: 11px;
-  color: var(--text-faint);
-  margin: 14px 0 7px;
-}
-
-.empty {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin: 0;
-  line-height: 1.7;
-}
-
-.tip {
-  font-size: 11px;
-  color: var(--text-faint);
-  line-height: 1.7;
-  margin: 12px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   六维度
-   ═══════════════════════════════════════════════════════════════ */
-
-.dims {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.dim-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 6px;
-}
-
-.dim-name {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.dim-score {
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.dim-bar {
-  height: 5px;
-  background: var(--fill);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.dim-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.5s ease-out;
-}
-
-.dim-meta {
-  display: flex;
-  gap: 10px;
-  margin-top: 5px;
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-.dim-weight {
-  flex-shrink: 0;
-  color: var(--brand-deep);
-  font-weight: 500;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   建议
-   ═══════════════════════════════════════════════════════════════ */
-
-.suggestions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sug {
-  padding: 13px 15px;
-  background: #fafbfc;
-  border-radius: 10px;
-  border-left: 3px solid var(--line);
-}
-
-.sug-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.sug-section {
-  font-size: 11px;
-  color: var(--text-faint);
-  padding-top: 2px;
-}
-
-.sug-issue {
-  flex: 1;
-  min-width: 200px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.6;
-}
-
-.sug-evidence {
-  display: flex;
-  gap: 8px;
-  padding: 7px 10px;
-  background: var(--surface);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 11.5px;
-  border: 1px solid var(--line-soft);
-}
-
-.ev-label {
-  flex-shrink: 0;
-  color: var(--text-faint);
-  font-weight: 500;
-}
-
-.ev-text {
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.sug-action {
-  font-size: 12px;
-  line-height: 1.75;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   底部
-   ═══════════════════════════════════════════════════════════════ */
-
-.footer-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  padding: 20px 0 8px;
-  flex-wrap: wrap;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   窄屏
-   ═══════════════════════════════════════════════════════════════ */
-
-@media (max-width: 760px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .score-num {
-    font-size: 48px;
-  }
+@media (max-width: 620px) {
+  .report-head { padding-top: 8px; }
+  .report-head h1 { font-size: clamp(38px, 12vw, 50px); }
+  .score-card { min-height: 300px; }
+  .score-value strong { font-size: 72px; }
+  .map-card, .priority-card, .paper-card, .dimension-section, .suggestion-section, .summary-card { padding: 20px; }
+  .summary-card { align-items: flex-start; }
+  .summary-mark { width: 36px; height: 36px; }
+  .dimension-title { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .dimension-title > p { text-align: left; }
+  .suggestion-item { grid-template-columns: 28px 1fr; gap: 11px; }
+  .evidence-row, .action-row { grid-template-columns: 1fr; gap: 5px; }
+  .action-buttons { flex-direction: column; }
+  .action-buttons :deep(.el-button) { width: 100%; }
 }
 </style>

@@ -40,6 +40,9 @@ public record CommentVO(
         /** 这条评论是不是我发的 */
         Boolean isOwner,
 
+        /** 当前用户能否采纳这条建议（帖子作者、非本人评论、尚未采纳） */
+        Boolean canAdopt,
+
         LocalDateTime createdAt,
 
         /** 回复列表。只有顶层评论有值 */

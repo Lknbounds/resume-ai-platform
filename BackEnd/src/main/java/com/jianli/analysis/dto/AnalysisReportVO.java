@@ -35,6 +35,7 @@ public record AnalysisReportVO(
         Integer resumeVersionNo,
         Long jdId,
         String jdTitle,
+        String jdCompany,
 
         // ─────────── 六维度 ───────────
 

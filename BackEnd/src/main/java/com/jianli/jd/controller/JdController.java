@@ -2,6 +2,8 @@ package com.jianli.jd.controller;
 
 import com.jianli.common.ApiResponse;
 import com.jianli.common.CurrentUserId;
+import com.jianli.common.PageResult;
+import com.jianli.jd.dto.ImportJdResult;
 import com.jianli.jd.dto.JdVO;
 import com.jianli.jd.dto.SaveJdRequest;
 import com.jianli.jd.service.JdService;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,13 +23,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 
 /**
  * ═══════════════════════════════════════════════════════════════════════
  *  【这个类是什么】
- *  JD 相关接口。5 个，全部委托给 JdService。
+ *  JD 相关接口。6 个，全部委托给 JdService。
  * ═══════════════════════════════════════════════════════════════════════
  */
 @RestController
@@ -51,16 +54,30 @@ public class JdController {
     }
 
     /**
-     * 我的 JD 列表。
+     * 从 Markdown/TXT 文件批量导入 JD。
      *
-     * ★ 不分页 —— 用户保存的 JD 通常 < 20 个，
-     *   一次全查比"分页 + 前端再请求"简单。Service 里限制最多 100 条。
+     * 文件中每个岗位必须以“## 岗位名称”开头。
+     * 重复项会跳过，单条失败不会影响其他条目入库。
+     */
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "批量导入 JD 文件",
+            description = "支持 .md 和 .txt；一个文件可包含多份 JD，以 ## 岗位名称 分隔")
+    public ApiResponse<ImportJdResult> importFile(@CurrentUserId Long userId,
+                                                   @RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(jdService.importFile(userId, file));
+    }
+
+    /**
+     * 我的 JD 列表，按更新时间倒序分页。
      */
     @GetMapping
-    @Operation(summary = "我的 JD 列表", description = "可用 keyword 搜索岗位名或公司名")
-    public ApiResponse<List<JdVO>> list(@CurrentUserId Long userId,
-                                        @RequestParam(required = false) String keyword) {
-        return ApiResponse.ok(jdService.list(userId, keyword));
+    @Operation(summary = "我的 JD 列表", description = "支持 keyword 搜索和 page/size 分页")
+    public ApiResponse<PageResult<JdVO>> list(
+            @CurrentUserId Long userId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(jdService.list(userId, keyword, page, size));
     }
 
     @GetMapping("/{id}")

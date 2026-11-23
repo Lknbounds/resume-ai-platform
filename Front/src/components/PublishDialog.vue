@@ -333,4 +333,15 @@ const typeLabel = {
   color: var(--text-faint);
   line-height: 32px;
 }
+
+
+/* 方案 C 弹窗细节 */
+:deep(.el-dialog) { max-width: calc(100vw - 28px); }
+.footer-tip { line-height: 1.55; }
+@media (max-width: 720px) {
+  .hit-item { align-items: flex-start; flex-wrap: wrap; }
+  .hit-advice { flex: 1 1 100%; }
+  .footer-tip { display: block; float: none; margin-bottom: 10px; text-align: left; }
+}
+
 </style>
